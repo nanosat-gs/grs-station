@@ -107,7 +107,9 @@ for entry in "${entries[@]}"; do
 
   if [ ! -d "$path" ]; then
     echo "  clonando $url"
-    git clone --branch "$ref" "$url" "$path"
+    # advice.detachedHead=false: a spacelab-tracking é clonada numa tag, e o
+    # aviso de 'detached HEAD' do git aí é esperado, não um problema.
+    git -c advice.detachedHead=false clone --quiet --branch "$ref" "$url" "$path"
     continue
   fi
 

@@ -123,7 +123,9 @@ foreach ($entry in $entries) {
 
     if (-not (Test-Path $path)) {
         Write-Host "  clonando $($entry.Url)"
-        git clone --quiet --branch $entry.Ref $entry.Url $path
+        # advice.detachedHead=false: a spacelab-tracking é clonada numa tag, e o
+        # aviso de 'detached HEAD' do git aí é esperado, não um problema.
+        git -c advice.detachedHead=false clone --quiet --branch $entry.Ref $entry.Url $path
         if ($LASTEXITCODE -ne 0) { Write-Host "  Falha ao clonar $($entry.Name)" -ForegroundColor Red; exit 1 }
         continue
     }
