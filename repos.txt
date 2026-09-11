@@ -1,0 +1,22 @@
+# Manifesto dos repositórios da estação. Lido por bootstrap.ps1 e bootstrap.sh.
+#
+# Formato:  <nome>  <url>  <ref>
+#
+# O <nome> é o diretório criado em repos/ e é o que o docker-compose.yml usa
+# como build context. Mudá-lo aqui exige mudá-lo lá.
+#
+# ATENÇÃO à tag da spacelab-tracking: grs-station-manager e grs-tc-scheduler a
+# pinam INDEPENDENTEMENTE nos seus pyproject.toml, e o payload de
+# `track_satellite` no ZMQ 5580 é OrbitalData.to_json(). Se os dois pinarem
+# tags diferentes com formatos incompatíveis, a falha aparece no meio de uma
+# passagem. A tag abaixo é a abençoada; `bootstrap.ps1 -Check` avisa se algum
+# pyproject divergir dela.
+
+spacelab-tracking     https://github.com/nanosat-gs/spacelab-tracking.git      v0.1.0
+grs-station-manager   https://github.com/nanosat-gs/grs-station-manager.git    main
+grs-manager           https://github.com/nanosat-gs/grs-manager.git            main
+grs-tc-scheduler      https://github.com/nanosat-gs/grs-tc-scheduler.git       main
+
+# O TC Generator NÃO fica na org: é um fork de spacelab-ufsc/grs-tc-generator,
+# e movê-lo quebraria o fluxo de pull request para o upstream.
+grs-tc-generator      https://github.com/edsoncepedi/grs-tc-generator.git      main

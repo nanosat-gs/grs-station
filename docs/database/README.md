@@ -229,7 +229,8 @@ erDiagram
 > **Este documento descreve um design, não o banco em uso.** O script está em
 > [`design-original-mgm8.sql`](design-original-mgm8.sql) e nada o executa: o
 > schema que a estação realmente usa é o do TC Generator
-> (`services/grs-tc-generator/resources/database/schema.sql`), montado pelo
+> (`resources/database/schema.sql` no repositório dele; `repos/grs-tc-generator/`
+> depois do bootstrap), montado pelo
 > compose em `/docker-entrypoint-initdb.d/`. As tabelas que o TC Scheduler
 > escreve e serve — `satellites`, `telecommands`, `scheduled_passes`,
 > `satellite_tracking_status`, `execution_logs` — estão lá, e não aqui.

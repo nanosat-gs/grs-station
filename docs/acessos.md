@@ -34,9 +34,10 @@ que ele enxerga o banco.
 |---|---|---|
 | `4533` | GRS Manager | rotctld (hamlib) — controle manual do rotor |
 | `5580` | Station Manager | ZMQ REP — comandos de rotor e rastreamento |
+| `5591` | TC Scheduler | HTTP — API de leitura do plano (é web, mas não é página) |
 | `5432` | PostgreSQL | `postgresql://admin:admin@localhost:5432/tc_generator` |
 
-## API do painel
+## API do painel — GRS Manager, `5590`
 
 | Endpoint | Método | Devolve |
 |---|---|---|
@@ -51,6 +52,30 @@ curl http://localhost:5590/health
 curl http://localhost:5590/api/satellite/SAT-001
 curl -X POST http://localhost:5590/api/tle/refresh
 ```
+
+## API de leitura do plano — TC Scheduler, `5591`
+
+De onde o painel tira os satélites e as passagens. O GRS Manager **não abre o
+banco**: ele pergunta aqui. Os caminhos são os mesmos de propósito, para que o
+cliente seja um repasse de URL — consultar a `5591` direto é a forma de saber
+se um problema no painel é dele ou da fonte.
+
+| Endpoint | Método | Devolve |
+|---|---|---|
+| `/health` | GET | `{"ok": true, "database_available": bool}` |
+| `/api/station` | GET | Satélites com posição e próxima passagem |
+| `/api/satellite/<código>` | GET | Detalhe, ou `404` se o código não existe |
+| `/api/tle/refresh` | POST | Revalida os TLEs no CelesTrak |
+
+```powershell
+curl http://localhost:5591/health
+curl http://localhost:5591/api/station
+```
+
+Com o TC Scheduler parado, a `5590` continua respondendo: `/health` e `/events`
+seguem ao vivo (são o rotor) e `/api/station` devolve `200` com
+`database_available: false`. Isso é o comportamento correto, não uma falha —
+uma passagem em andamento não pode parar porque um serviço de consulta caiu.
 
 ## Linha de comando
 

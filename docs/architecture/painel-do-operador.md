@@ -1,5 +1,11 @@
 # Painel do operador — o que é e por quê
 
+> **Atualização (split em repositórios):** onde este texto diz que o painel
+> lê o banco, leia "pergunta ao TC Scheduler". O GRS Manager deixou de ter
+> conexão com o Postgres: os mesmos dados chegam pela API de leitura do
+> Scheduler (`:5591`), e a variável é `TC_SCHEDULER_API_URL`, não
+> `PG_DATABASE_URL`. A interface única descrita aqui continua igual.
+
 > Leitura acessível. Cobre a mudança feita em `src/grs_manager/status/`.
 
 ## O que mudou

@@ -1,5 +1,15 @@
 # Camadas da aplicação
 
+> **Documento histórico.** Descreve o MGM8 como ele foi desenhado, antes do
+> split em repositórios. Cita módulos que já não existem (`pass_scheduler.py`,
+> `api/`, os repositórios em memória): eram um agendamento paralelo ao do TC
+> Scheduler, que nenhum processo subia, e foram removidos.
+>
+> A arquitetura hexagonal descrita aqui **continua valendo** para o Station
+> Manager — ver `nanosat-gs/grs-station-manager`. O que mudou foi o escopo: o
+> agendamento saiu daquele serviço e mora no TC Scheduler.
+
+
 O MGM8 segue uma **arquitetura hexagonal (ports & adapters)** com separação clara entre domínio, aplicação e infraestrutura. A comunicação externa é predominantemente **ZeroMQ** (Pub/Sub para streaming, Req/Rep para comandos síncronos).
 
 ## Diagrama de camadas

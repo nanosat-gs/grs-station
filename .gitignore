@@ -1,67 +1,17 @@
-# ===============================
-# LaTeX
-# ===============================
-*.aux
-*.bbl
-*.bcf
-*.blg
-*.fdb_latexmk
-*.fls
-*.log
-*.out
-*.run.xml
-*.synctex.gz
-*.toc
-*.lof
-*.lot
-*.nav
-*.snm
-*.vrb
+# repos/ guarda os clones dos blocos da estação, cada um com o seu próprio
+# .git. Ignorar NÃO é opcional: sem esta linha o git trata cada clone como um
+# gitlink e você reinventa submódulos por acidente — exatamente o que este
+# repositório existe para evitar.
+repos/
 
-# ===============================
-# Visual Studio Code
-# ===============================
-.vscode/
-
-# ===============================
-# Visual Studio
-# ===============================
-.vs/
-bin/
-obj/
-
-# Python
+.env
 __pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
 .coverage
 htmlcov/
 .venv/
 venv/
-.env
-*.egg-info/
-dist/
-build/
-
-# ===============================
-# Rider
-# ===============================
 .idea/
-
-# ===============================
-# Windows
-# ===============================
-Thumbs.db
-Desktop.ini
-
-# ===============================
-# Temporary files
-# ===============================
-*.tmp
-*.temp
-*.bak
-
-# ===============================
-# OS
-# ===============================
-.DS_Store
+.vscode/

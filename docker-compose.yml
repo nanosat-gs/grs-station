@@ -1,10 +1,23 @@
 # Compose único da estação terrestre.
 #
-# Cada bloco continua sendo um repositório independente com o seu próprio
-# Dockerfile e o seu próprio compose (para rodar sozinho em desenvolvimento).
+# Cada bloco é um repositório independente, clonado em repos/ pelo bootstrap.
 # Este arquivo não importa o compose de ninguém: declara a infra compartilhada
 # (um postgres, uma rede) e constrói cada serviço apontando o build context
-# para o diretório do submódulo correspondente em services/.
+# para o clone correspondente.
+#
+# Rodar `docker compose up` sozinho testa AS IMAGENS, que é o que rodaria numa
+# máquina de verdade. Para desenvolver contra a sua árvore de trabalho, some o
+# override:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+
+# NÃO REMOVER a linha `name:` abaixo. Sem ela o compose deriva o prefixo dos
+# volumes do nome do DIRETÓRIO, e um clone noutra pasta montaria
+# `grs-station_postgres_data` — vazio. O initdb rodaria (volume vazio!), o
+# schema nasceria limpo, os containers subiriam saudáveis, e todos os satélites
+# e telecomandos teriam sumido sem uma única mensagem de erro. O nome abaixo é
+# o do monorepo original, que é onde os volumes com os dados já existem.
+name: gs-stationmanager
 
 services:
   # --- Infraestrutura compartilhada ---
@@ -19,10 +32,13 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # O prefixo numérico fixa a ordem: o entrypoint do postgres roda os .sql
-      # em ordem alfabética, e o DDL do orquestrador (02-*) depende das tabelas
-      # que o schema do TC Generator (01-*) cria.
-      - ./services/grs-tc-generator/resources/database/schema.sql:/docker-entrypoint-initdb.d/01-tc-generator.sql:ro
+      # O schema é propriedade do TC Generator: é ele quem cria satélites e
+      # telecomandos. O TC Scheduler escreve nessas mesmas tabelas e confere o
+      # contrato no boot (ver docs/schema-contract.md naquele repositório).
+      #
+      # Lembrete: docker-entrypoint-initdb.d SÓ RODA EM VOLUME VAZIO. Mudança
+      # de schema exige ALTER TABLE manual ou `down -v`, que APAGA os dados.
+      - ./repos/grs-tc-generator/resources/database/schema.sql:/docker-entrypoint-initdb.d/01-tc-generator.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin} -d ${DB_NAME:-tc_generator}"]
       interval: 5s
@@ -47,7 +63,7 @@ services:
 
   # --- Control Desktop ---
   tc-generator-web:
-    build: ./services/grs-tc-generator
+    build: ./repos/grs-tc-generator
     container_name: spacelab-tc-generator
     ports:
       - "5000:5000"
@@ -59,16 +75,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    volumes:
-      - ./services/grs-tc-generator/app:/app/app
-      - ./services/grs-tc-generator/run.py:/app/run.py
     networks:
       - spacelab-network
 
   grs-manager:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
+    build: ./repos/grs-manager
     container_name: spacelab-grs-manager
     # --host/--status-host precisam ser 0.0.0.0: os defaults são 127.0.0.1, que
     # dentro do container não aceitam conexão vinda de fora dele.
@@ -82,37 +93,31 @@ services:
       - --status-host=0.0.0.0
       - --status-port=5590
     ports:
-      - "4533:4533"   # rotctld (hamlib) — é aqui que o gpredict conecta
-      - "5590:5590"   # painel de status (SSE)
+      - "4533:4533"   # rotctld (hamlib) — é aqui que um cliente hamlib conecta
+      - "5590:5590"   # painel do operador
     environment:
-      # O painel pergunta ao TC Scheduler o que ele planejou, em vez de abrir
-      # o banco. Este é o único serviço da estação que não conhece o Postgres
-      # — nem para ler. Sem esta variável o painel funciona igual, só sem a
-      # parte de satélites.
+      # O painel pergunta ao TC Scheduler o que ele planejou. Este é o único
+      # serviço da estação que não conhece o Postgres — nem para ler. Sem esta
+      # variável o painel funciona igual, só sem a parte de satélites.
       TC_SCHEDULER_API_URL: http://tc-scheduler:5591
       # Resolvido pelo navegador do operador (os links de telecomando abrem o
       # TC Generator), e não pelo container — por isso localhost.
       TC_GENERATOR_URL: ${TC_GENERATOR_URL:-http://localhost:5000}
-    # As coordenadas GS_* saíram junto com o acesso ao banco: quem propaga a
-    # órbita agora é o Scheduler, e o painel só desenha o que recebe pronto.
     depends_on:
       - station-manager
       # Só ordem de subida, não requisito: com o Scheduler fora, o painel
       # continua sendo o controle de rotor, que é o que ele precisa fazer.
       - tc-scheduler
-    volumes:
-      - ./src:/app/src
-      - ./libs:/app/libs
     networks:
       - spacelab-network
 
   # --- Control Server ---
   tc-scheduler:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
+    build: ./repos/grs-tc-scheduler
     container_name: spacelab-tc-scheduler
     command: ["python", "-m", "tc_scheduler.main"]
+    ports:
+      - "5591:5591"   # API de leitura do plano — é daqui que o painel se serve
     environment:
       PG_DATABASE_URL: postgresql+psycopg2://${DB_USER:-admin}:${DB_PASSWORD:-admin}@postgres:5432/${DB_NAME:-tc_generator}
       STATION_MANAGER_ZMQ_ADDRESS: tcp://station-manager:5580
@@ -130,34 +135,26 @@ services:
       # Idade máxima do TLE em cache, em minutos, antes de revalidar no
       # CelesTrak. Este serviço é o único que escreve e lê esse cache.
       TRACKING_CACHE_MAX_AGE_MINUTES: ${TRACKING_CACHE_MAX_AGE_MINUTES:-15}
-    ports:
-      - "5591:5591"   # API de leitura do plano — é daqui que o painel se serve
     depends_on:
       postgres:
         condition: service_healthy
       station-manager:
         condition: service_started
     volumes:
-      - ./src:/app/src
-      - ./libs:/app/libs
-      - ./tools:/app/tools
-      # Cache de TLE: preserva o fallback offline do celestrak entre restarts.
-      # Antes o GRS Manager montava este mesmo volume para poder revalidar os
-      # TLEs pelo painel; agora ele pede a revalidação por HTTP, e o cache tem
-      # um único processo mexendo nele.
+      # Cache de TLE: preserva o fallback offline do CelesTrak entre restarts.
+      # Um processo só mexe nele, desde que o painel passou a pedir a
+      # revalidação por HTTP em vez de escrever no mesmo volume.
       - tracking_data:/app/data
     networks:
       - spacelab-network
 
   station-manager:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
+    build: ./repos/grs-station-manager
     container_name: spacelab-station-manager
-    # --rotor mock, e não zmq: o RotorManager vendorizado tem o socket SUB fixo
-    # em tcp://localhost:5560 (src/mgm8/vendor/rotor_manager.py), o que
-    # só funciona com o simulador no mesmo host de rede — nunca entre containers.
-    # Rodar contra o rotor físico/simulado continua sendo fora do Docker.
+    # --rotor mock, e não zmq: o RotorManager copiado tem o socket SUB fixo em
+    # tcp://localhost:5560 (src/mgm8/vendor/rotor_manager.py), o que só funciona
+    # com o simulador no mesmo host de rede — nunca entre containers. Rodar
+    # contra o rotor físico/simulado continua sendo fora do Docker.
     command:
       - python
       - -m
@@ -170,7 +167,7 @@ services:
       - --pointing-min-elevation=${STATION_POINTING_MIN_ELEVATION:-0}
       - --pointing-interval=${STATION_POINTING_INTERVAL_SECONDS:-1}
     ports:
-      - "5580:5580"   # ZMQ REP — comandos de rotor
+      - "5580:5580"   # ZMQ REP — comandos de rotor e ordens de rastreamento
     environment:
       # Mesmas coordenadas do TC Scheduler: os dois precisam concordar sobre de
       # onde a estação observa, ou o plano e o apontamento divergem.
@@ -178,9 +175,6 @@ services:
       GS_LATITUDE_DEG: ${GS_LATITUDE_DEG:--23.5505}
       GS_LONGITUDE_DEG: ${GS_LONGITUDE_DEG:--46.6333}
       GS_ALTITUDE_M: ${GS_ALTITUDE_M:-760}
-    volumes:
-      - ./src:/app/src
-      - ./libs:/app/libs
     networks:
       - spacelab-network
 

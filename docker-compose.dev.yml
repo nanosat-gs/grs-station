@@ -1,0 +1,32 @@
+# Override de desenvolvimento: monta as árvores de trabalho de repos/ dentro
+# dos containers, para que uma edição apareça sem rebuild.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+#
+# Separado do compose principal de propósito. Sem isso, `docker compose up`
+# puro nunca exercitaria a imagem de verdade — o bind mount sempre a cobriria,
+# e um erro de Dockerfile só apareceria na primeira máquina que não fosse esta.
+#
+# ATENÇÃO: isto NÃO recarrega a spacelab-tracking. Ela é instalada por git URL
+# durante o build, então editar repos/spacelab-tracking/ não tem efeito nenhum
+# aqui — e a falha é silenciosa. Ver a armadilha no CLAUDE.md.
+
+services:
+  grs-manager:
+    volumes:
+      - ./repos/grs-manager/src:/app/src
+
+  tc-scheduler:
+    volumes:
+      - ./repos/grs-tc-scheduler/src:/app/src
+      - ./repos/grs-tc-scheduler/tools:/app/tools
+      - tracking_data:/app/data
+
+  station-manager:
+    volumes:
+      - ./repos/grs-station-manager/src:/app/src
+
+  tc-generator-web:
+    volumes:
+      - ./repos/grs-tc-generator/app:/app/app
+      - ./repos/grs-tc-generator/run.py:/app/run.py

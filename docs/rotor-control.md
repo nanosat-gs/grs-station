@@ -15,12 +15,19 @@ Satellite Tracker  --rotctld (TCP)-->  GRS Manager  --ZMQ REQ/REP-->  Station Ma
                         hamlib          grs_manager/                                        grs-rotor-manager      rotor_manager.py                          rotor_simulator.py)
 ```
 
+> Os caminhos `src/...` abaixo são **relativos ao repositório de cada bloco**,
+> não a este. `src/grs_manager/` está em
+> [nanosat-gs/grs-manager](https://github.com/nanosat-gs/grs-manager);
+> `src/mgm8/` está em
+> [nanosat-gs/grs-station-manager](https://github.com/nanosat-gs/grs-station-manager).
+> Depois do bootstrap, as duas árvores ficam em `repos/`.
+
 | Componente | Papel | Código |
 |---|---|---|
 | **Satellite Tracker** | Cliente rotctld, não é nosso | gpredict |
-| **GRS Manager** | Adapter: fala rotctld pro gpredict, fala ZMQ pro Station Manager | [`src/grs_manager/`](../src/grs_manager/) |
-| **Station Manager** | Núcleo de negócio (clamp de curso) + adapter de saída pro Rotor Manager | [`src/mgm8/`](../src/mgm8/) |
-| **Rotor Manager** | Adapter: fala ZMQ pro Station Manager, fala Rot2Prog binário pro rotor | [`src/mgm8/vendor/`](../src/mgm8/vendor/) (cópia, ver `UPSTREAM.md`) |
+| **GRS Manager** | Adapter: fala rotctld pro gpredict, fala ZMQ pro Station Manager | `src/grs_manager/` |
+| **Station Manager** | Núcleo de negócio (clamp de curso) + adapter de saída pro Rotor Manager | `src/mgm8/` |
+| **Rotor Manager** | Adapter: fala ZMQ pro Station Manager, fala Rot2Prog binário pro rotor | `src/mgm8/vendor/` em [nanosat-gs/grs-station-manager](https://github.com/nanosat-gs/grs-station-manager) (cópia, ver `UPSTREAM.md`) |
 | **Rotor Controller** | Hardware físico (AlfaSpid) | — no teste, `rotor_simulator.py` faz esse papel |
 
 Cada seta do diagrama é um **protocolo diferente**, e cada "Manager" só
@@ -32,17 +39,17 @@ value object de posição (`grs_manager.domain.models.RotorPosition` e
 
 ### GRS Manager (`src/grs_manager/`)
 
-- **Adapter de entrada** — [`rotctld/server.py`](../src/grs_manager/rotctld/server.py): servidor TCP, implementa o subconjunto do protocolo rotctld que o gpredict usa (`p`, `P`, `S`, `\dump_state`, `q`). Também rastreia quantas conexões TCP estão abertas (`is_gpredict_connected`), usado pelo painel de status.
-- **Adapter de saída** — [`adapters/station_manager_zmq.py`](../src/grs_manager/adapters/station_manager_zmq.py): cliente ZMQ REQ, fala com o Station Manager num protocolo JSON próprio (schema documentado no topo do arquivo).
-- **Painel de status** — [`status/app.py`](../src/grs_manager/status/app.py): app Flask que mostra se o gpredict está conectado e se o rotor está respondendo (ver seção própria abaixo).
-- **Composition root** — [`main.py`](../src/grs_manager/main.py).
+- **Adapter de entrada** — `rotctld/server.py`: servidor TCP, implementa o subconjunto do protocolo rotctld que o gpredict usa (`p`, `P`, `S`, `\dump_state`, `q`). Também rastreia quantas conexões TCP estão abertas (`is_gpredict_connected`). O painel **não** reporta mais esse estado: o rastreamento da estação é próprio, e destacar a conexão externa sugeriria que ela ainda faz parte do fluxo normal.
+- **Adapter de saída** — `adapters/station_manager_zmq.py`: cliente ZMQ REQ, fala com o Station Manager num protocolo JSON próprio (schema documentado no topo do arquivo).
+- **Painel de status** — `status/app.py`: app Flask que mostra se o rotor está respondendo e, consultando a API do TC Scheduler, o plano da estação (ver seção própria abaixo).
+- **Composition root** — `main.py`.
 
 ### Station Manager (`src/mgm8/`)
 
-- **Adapter de entrada (rotor)** — [`rotor_zmq/server.py`](../src/mgm8/rotor_zmq/server.py): servidor ZMQ REP, espelha o schema JSON do GRS Manager.
-- **Núcleo** — [`application/tracking_service.py`](../src/mgm8/application/tracking_service.py): faz o clamp de curso (limites de az/el) e loga o valor real (decimal, sem arredondar) antes de repassar ao rotor.
-- **Adapters de saída (rotor)** — [`infrastructure/mock_rotor.py`](../src/mgm8/infrastructure/mock_rotor.py) (fake em memória) e [`infrastructure/rot2prog_zmq.py`](../src/mgm8/infrastructure/rot2prog_zmq.py) (envolve o `RotorManager` do submódulo).
-- **Composition root (rotor)** — [`rotor_zmq/main.py`](../src/mgm8/rotor_zmq/main.py).
+- **Adapter de entrada (rotor)** — `rotor_zmq/server.py`: servidor ZMQ REP, espelha o schema JSON do GRS Manager.
+- **Núcleo** — `application/tracking_service.py`: faz o clamp de curso (limites de az/el) e loga o valor real (decimal, sem arredondar) antes de repassar ao rotor.
+- **Adapters de saída (rotor)** — `infrastructure/mock_rotor.py` (fake em memória) e `infrastructure/rot2prog_zmq.py` (envolve o `RotorManager` do submódulo).
+- **Composition root (rotor)** — `rotor_zmq/main.py`.
 - **Adapter de entrada (HTTP, não relacionado a rotor)** — `api/app.py`, para agendamento de passagens. Processo separado.
 
 ## Como testar (checklist completo)
@@ -114,7 +121,7 @@ Manager (antes disso, tudo vivia junto em `mgm8.rotctld`).
 ## Pré-requisitos
 
 ```powershell
-# o Rotor Manager já vem no pacote (src/mgm8/vendor), sem submódulo
+.ootstrap.ps1   # traz os repositórios; o Rotor Manager já vem dentro do Station Manager
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev,zmq]"
