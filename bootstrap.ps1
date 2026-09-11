@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Clona (ou atualiza) os repositórios da estação em repos/.
 
@@ -31,13 +31,18 @@ param(
     [switch]$Check
 )
 
-$ErrorActionPreference = "Stop"
+# "Continue", e não "Stop": no Windows PowerShell 5.1 o git escreve mensagens
+# normais ("Cloning into...") no stderr, e com "Stop" isso vira um
+# NativeCommandError fatal. O sucesso de cada comando do git é conferido pelo
+# $LASTEXITCODE, que é o que de fato reflete o código de saída.
+$ErrorActionPreference = "Continue"
 $root = $PSScriptRoot
 $manifest = Join-Path $root "repos.txt"
 $reposDir = Join-Path $root "repos"
 
 if (-not (Test-Path $manifest)) {
-    Write-Error "repos.txt não encontrado em $root"
+    Write-Host "repos.txt não encontrado em $root" -ForegroundColor Red
+    exit 1
 }
 
 # Lê o manifesto: ignora linhas vazias e comentários.
@@ -103,7 +108,8 @@ if ($Check) {
     $pinProblems = Test-TrackingPins -Entries $entries
 
     if ($missing -gt 0) {
-        Write-Error "$missing repositorio(s) faltando. Rode .\bootstrap.ps1 sem -Check."
+        Write-Host "$missing repositório(s) faltando. Rode .\bootstrap.ps1 sem -Check." -ForegroundColor Red
+        exit 1
     }
     if ($pinProblems -eq 0) { Write-Host "`nTudo certo." -ForegroundColor Green }
     return
@@ -117,14 +123,14 @@ foreach ($entry in $entries) {
 
     if (-not (Test-Path $path)) {
         Write-Host "  clonando $($entry.Url)"
-        git clone --branch $entry.Ref $entry.Url $path
-        if (-not $?) { Write-Error "Falha ao clonar $($entry.Name)" }
+        git clone --quiet --branch $entry.Ref $entry.Url $path
+        if ($LASTEXITCODE -ne 0) { Write-Host "  Falha ao clonar $($entry.Name)" -ForegroundColor Red; exit 1 }
         continue
     }
 
     Write-Host "  ja existe; buscando atualizacoes"
     git -C $path fetch --all --tags --quiet
-    if (-not $?) { Write-Warning "  fetch falhou em $($entry.Name)" }
+    if ($LASTEXITCODE -ne 0) { Write-Warning "  fetch falhou em $($entry.Name)" }
 
     # Nunca sobrescreve trabalho local sem pedir.
     $dirty = git -C $path status --porcelain
@@ -137,10 +143,11 @@ foreach ($entry in $entries) {
     if ($current -ne $entry.Ref) {
         Write-Host "  checkout $($entry.Ref) (estava em $current)"
         git -C $path checkout --quiet $entry.Ref
+        if ($LASTEXITCODE -ne 0) { Write-Warning "  checkout de $($entry.Ref) falhou em $($entry.Name)" }
     }
     if ($current -eq $entry.Ref) {
         git -C $path pull --ff-only --quiet
-        if (-not $?) { Write-Warning "  pull nao foi fast-forward; deixando como esta." }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "  pull não foi fast-forward; deixando como está." }
     }
 }
 
@@ -153,7 +160,7 @@ if ($Dev) {
         if (-not (Test-Path $path)) { Write-Warning "  pulando $name (nao clonado)"; continue }
         Write-Host "  pip install -e repos/$name"
         python -m pip install --quiet -e $path
-        if (-not $?) { Write-Warning "  falhou em $name" }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "  falhou em $name" }
     }
     python -m pip install --quiet -e "$root[dev]"
 }

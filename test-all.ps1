@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Roda a suíte de cada repositório clonado, mais o teste ponta a ponta.
 
