@@ -12,7 +12,7 @@ o bootstrap que traz os outros repositórios, e o teste ponta a ponta.
 | **Station Manager** | `nanosat-gs/grs-station-manager` | Controla o rotor; conduz uma passagem sozinho (ZMQ 5580) |
 | **GRS Manager** | `nanosat-gs/grs-manager` | Painel do operador (5590) e ponte rotctld (4533) |
 | **TC Scheduler** | `nanosat-gs/grs-tc-scheduler` | Decide o que rastrear; único escritor do banco; API (5591) |
-| **TC Generator** | `edsoncepedi/grs-tc-generator` | Interface web: telecomandos e satélites (5000) |
+| **TC Generator** | `nanosat-gs/grs-tc-generator` | Interface web: telecomandos e satélites (5000) |
 | **Orquestrador** | `nanosat-gs/grs-station` | Este repo: compose, bootstrap, docs, e2e |
 
 O **Rotor Manager** deixou de ser repositório consumido: as 88 linhas dele

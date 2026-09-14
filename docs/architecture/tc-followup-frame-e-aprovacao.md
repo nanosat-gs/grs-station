@@ -1,6 +1,6 @@
 # Follow-up: validação de frame e aprovação de telecomando
 
-> Especificação para um **PR separado ao fork `edsoncepedi/grs-tc-generator`**.
+> Especificação para um **PR separado ao fork `nanosat-gs/grs-tc-generator`**.
 > Estas duas peças vieram do protótipo (`laura/propagator-tc-prototype`) mas não
 > cabem no `GS-STATIONMANAGER`: o telecomando é criado e persistido no TC
 > Generator, e o GRS Manager/Station Manager não escrevem naquele banco.

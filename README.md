@@ -33,7 +33,7 @@ O GRS Manager não toca no Postgres: a seta dele vai para a API do TC Scheduler.
 | Station Manager | [nanosat-gs/grs-station-manager](https://github.com/nanosat-gs/grs-station-manager) |
 | GRS Manager | [nanosat-gs/grs-manager](https://github.com/nanosat-gs/grs-manager) |
 | TC Scheduler | [nanosat-gs/grs-tc-scheduler](https://github.com/nanosat-gs/grs-tc-scheduler) |
-| TC Generator | [edsoncepedi/grs-tc-generator](https://github.com/edsoncepedi/grs-tc-generator) |
+| TC Generator | [nanosat-gs/grs-tc-generator](https://github.com/nanosat-gs/grs-tc-generator) |
 
 ## Como subir
 
