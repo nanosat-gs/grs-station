@@ -19,6 +19,18 @@
 # o do monorepo original, que é onde os volumes com os dados já existem.
 name: gs-stationmanager
 
+# Localização da estação, declarada UMA vez e reaproveitada por quem calcula
+# órbita (TC Scheduler e Station Manager). Os dois precisam concordar sobre de
+# onde a estação observa: se só um mudasse, o plano diria uma hora e o rotor
+# apontaria para outro lugar. Para trocar, edite as variáveis GS_* no .env — não
+# aqui. Os defaults são São Paulo, um EXEMPLO até haver a coordenada real.
+x-ground-station: &ground-station
+  GS_NAME: ${GS_NAME:-Estação de Teste}
+  GS_LATITUDE_DEG: ${GS_LATITUDE_DEG:--23.5505}
+  GS_LONGITUDE_DEG: ${GS_LONGITUDE_DEG:--46.6333}
+  GS_ALTITUDE_M: ${GS_ALTITUDE_M:-760}
+  GS_MIN_ELEVATION_DEG: ${GS_MIN_ELEVATION_DEG:-0}
+
 services:
   # --- Infraestrutura compartilhada ---
   postgres:
@@ -119,18 +131,12 @@ services:
     ports:
       - "5591:5591"   # API de leitura do plano — é daqui que o painel se serve
     environment:
+      <<: *ground-station
       PG_DATABASE_URL: postgresql+psycopg2://${DB_USER:-admin}:${DB_PASSWORD:-admin}@postgres:5432/${DB_NAME:-tc_generator}
       STATION_MANAGER_ZMQ_ADDRESS: tcp://station-manager:5580
       SCHEDULER_HORIZON_HOURS: ${SCHEDULER_HORIZON_HOURS:-24}
       SCHEDULER_REPLAN_INTERVAL_SECONDS: ${SCHEDULER_REPLAN_INTERVAL_SECONDS:-300}
       TRACKING_POLL_INTERVAL_SECONDS: ${TRACKING_POLL_INTERVAL_SECONDS:-30}
-      # Coordenadas da estação. Os defaults da biblioteca são um EXEMPLO
-      # (São Paulo) e precisam ser trocados pelos da estação real.
-      GS_NAME: ${GS_NAME:-Estação de Teste}
-      GS_LATITUDE_DEG: ${GS_LATITUDE_DEG:--23.5505}
-      GS_LONGITUDE_DEG: ${GS_LONGITUDE_DEG:--46.6333}
-      GS_ALTITUDE_M: ${GS_ALTITUDE_M:-760}
-      GS_MIN_ELEVATION_DEG: ${GS_MIN_ELEVATION_DEG:-0}
       TRACKING_DATA_DIR: /app/data
       # Idade máxima do TLE em cache, em minutos, antes de revalidar no
       # CelesTrak. Este serviço é o único que escreve e lê esse cache.
@@ -169,12 +175,8 @@ services:
     ports:
       - "5580:5580"   # ZMQ REP — comandos de rotor e ordens de rastreamento
     environment:
-      # Mesmas coordenadas do TC Scheduler: os dois precisam concordar sobre de
-      # onde a estação observa, ou o plano e o apontamento divergem.
-      GS_NAME: ${GS_NAME:-Estação de Teste}
-      GS_LATITUDE_DEG: ${GS_LATITUDE_DEG:--23.5505}
-      GS_LONGITUDE_DEG: ${GS_LONGITUDE_DEG:--46.6333}
-      GS_ALTITUDE_M: ${GS_ALTITUDE_M:-760}
+      # Mesma localização do TC Scheduler (ver x-ground-station no topo).
+      <<: *ground-station
     networks:
       - spacelab-network
 

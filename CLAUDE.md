@@ -142,7 +142,10 @@ porque sem isso um comando ficava em `queued` para sempre. Só passagem
   Checar o corpo antes de `raise_for_status`, senão "não existe" (que deve
   bloquear) vira "site fora do ar" (que deve apenas avisar).
 - **Coordenadas da estação são um exemplo** (São Paulo) nas variáveis `GS_*`.
-  Trocar antes de qualquer uso real.
+  Trocar antes de qualquer uso real, e **só no `.env`**: o compose as declara
+  uma vez em `x-ground-station` e as repassa ao TC Scheduler e ao Station
+  Manager. Não reescreva `GS_*` dentro do `environment:` de um serviço só: é
+  assim que o plano e o apontamento passam a divergir sem erro nenhum.
 - **Satélite sem telecomando à espera não entra no plano.** O Scheduler usa
   `JOIN telecommands`, não `LEFT JOIN`. Ele continua aparecendo no painel com
   posição, porque a posição vem de outra consulta.

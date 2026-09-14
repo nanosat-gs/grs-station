@@ -62,6 +62,35 @@ Endpoints, credenciais de desenvolvimento e as portas que não são web estão e
 [docs/acessos.md](docs/acessos.md). O desenho do painel está em
 [docs/architecture/painel-do-operador.md](docs/architecture/painel-do-operador.md).
 
+## Localização da estação
+
+De onde a estação observa vem das variáveis `GS_*` do `.env`, e só delas. O
+TC Scheduler (que prevê as passagens) e o Station Manager (que aponta o rotor)
+leem as mesmas variáveis, e o compose repassa aos dois a partir de um único
+bloco (`x-ground-station`). Assim o plano e o apontamento não têm como divergir.
+
+| Variável | Hoje | O que é |
+|---|---|---|
+| `GS_NAME` | `Estação de Teste` | Nome exibido no painel e nos logs |
+| `GS_LATITUDE_DEG` | `-23.5505` | Latitude, em graus (sul é negativo) |
+| `GS_LONGITUDE_DEG` | `-46.6333` | Longitude, em graus (oeste é negativo) |
+| `GS_ALTITUDE_M` | `760` | Altitude, em metros |
+| `GS_MIN_ELEVATION_DEG` | `0` | Máscara de elevação: abaixo disso, sem visada útil |
+
+Os valores atuais são **São Paulo, um exemplo** até haver a coordenada real.
+Para trocar:
+
+```powershell
+# 1. edite as linhas GS_* no .env (decimal com PONTO: -12.9714, não -12,9714)
+docker compose config | Select-String GS_   # 2. confira: os dois serviços, mesmos valores
+docker compose up -d                        # 3. recria só quem mudou; não precisa de --build
+docker compose logs station-manager | Select-String "Estação:"
+```
+
+A última linha deve mostrar a coordenada nova. Um valor mal formatado derruba os
+dois serviços na subida (`ValueError`). Isso é intencional: uma estação com
+coordenada inválida não pode rastrear em silêncio para o lugar errado.
+
 ## Desenvolver
 
 ```powershell
