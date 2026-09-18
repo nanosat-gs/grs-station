@@ -131,9 +131,10 @@ porque sem isso um comando ficava em `queued` para sempre. Só passagem
 - **`docker-entrypoint-initdb.d` só roda em volume vazio.** Mudança de schema
   exige `ALTER TABLE` manual ou `docker compose down -v` (que **apaga** os
   dados).
-- **`--rotor mock` no Docker.** O `RotorManager` copiado tem o socket SUB fixo
-  em `tcp://localhost:5560`, o que não funciona entre containers. Hardware real
-  e simulador continuam fora do Docker.
+- **`--rotor mock` no Docker.** O socket SUB de status do `RotorManager`
+  copiado já é parametrizável (`--rotor-status-address`, default
+  `tcp://127.0.0.1:5560` — mesmo valor de antes), mas isso resolve só metade
+  do problema: hardware real e simulador continuam fora do Docker.
 - **Cópias antigas do TC Generator.** Depois do split, `repos/grs-tc-generator`
   é a que constrói. O clone avulso em `../grs-tc-generator` e o
   `services/grs-tc-generator` do monorepo arquivado **não têm efeito** —
@@ -172,7 +173,10 @@ copiado para dentro do Station Manager; bootstrap sem submódulos; verificação
 do contrato de schema no boot.
 
 Em aberto: encoders/moduladores (transmissão real) — enquanto não existirem, o
-`sent` do fim da janela é inferência, não confirmação; parametrizar o
-`tcp://localhost:5560` do Rotor Manager, agora que a cópia está sob controle;
-estreitar a janela de rastreamento para o período de fluxo de dados; mapa de
-trajetória no painel; PR para o upstream do TC Generator.
+`sent` do fim da janela é inferência, não confirmação; estreitar a janela de
+rastreamento para o período de fluxo de dados; mapa de trajetória no painel;
+PR para o upstream do TC Generator.
+
+Feito recentemente: `tcp://localhost:5560` do Rotor Manager virou parametrizável
+(`--rotor-status-address`), então rodar o rotor real fora do host único deixou
+de exigir mexer no vendor copiado — falta só o trabalho de rede/hardware em si.
