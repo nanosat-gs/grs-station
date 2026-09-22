@@ -15,6 +15,24 @@ o bootstrap que traz os outros repositórios, e o teste ponta a ponta.
 | **TC Generator** | `nanosat-gs/grs-tc-generator` | Interface web: telecomandos e satélites (5000) |
 | **Orquestrador** | `nanosat-gs/grs-station` | Este repo: compose, bootstrap, docs, e2e |
 
+### Caminho de dados RX (profile `rx`)
+
+Três blocos **adotados** do `spacelab-ufsc` via **fork em `nanosat-gs`**, todos
+na branch `station`, e um bloco nosso. Não sobem num `docker compose up` comum
+— ver a armadilha do profile abaixo, e `docs/rx-datapath.md` para o porquê de
+cada base.
+
+| Bloco | Repositório | O que faz |
+|---|---|---|
+| **IQ Receiver** | `nanosat-gs/grs-iq-rx` @ `station` | C/RTL-SDR: sintoniza e publica IQ (`cf32_le`) na 5556, em lote |
+| **Demodulator** | `nanosat-gs/grs-demodulator` @ `station` | IQ -> bits na 5555, um byte por bit |
+| **Syncword Detector** | `nanosat-gs/grs-syncword-detector` @ `station` | Biblioteca C + serviço: raw packets na 5558 |
+| **IQ Recorder** | `nanosat-gs/grs-iq-recorder` | **Nosso.** Captura, replay e índice do fluxo de IQ |
+
+A branch `station` nasce do ref que de fato roda em cada repositório, e não do
+default do fork — que veio do upstream e, em dois dos três, é a versão que não
+roda. A relação de fork foi preservada, então PR de volta continua funcionando.
+
 O **Rotor Manager** deixou de ser repositório consumido: as 88 linhas dele
 estão copiadas em `src/mgm8/vendor/` no Station Manager (ver o `UPSTREAM.md`
 de lá).
@@ -48,6 +66,9 @@ para `test-all.ps1`). `.\bootstrap.ps1 -Check` confere antes de subir.
 | GRS Manager — rotctld / painel | 4533 / 5590 |
 | **TC Scheduler — API de leitura** | **5591** |
 | Station Manager (ZMQ REP) | 5580 |
+| **IQ Receiver — ZMQ PUB (IQ)** | **5556** |
+| **Demodulator — ZMQ PUB (bits)** | **5555** |
+| **Syncword Detector — ZMQ PUB (raw packets)** | **5558** |
 
 Links, credenciais de desenvolvimento e endpoints em `docs/acessos.md`. A
 confusão mais comum é abrir a 4533 (rotctld, protocolo hamlib) esperando o
@@ -149,6 +170,42 @@ porque sem isso um comando ficava em `queued` para sempre. Só passagem
 - **Satélite sem telecomando à espera não entra no plano.** O Scheduler usa
   `JOIN telecommands`, não `LEFT JOIN`. Ele continua aparecendo no painel com
   posição, porque a posição vem de outra consulta.
+- **O profile `rx` não sobe num `docker compose up` comum.** É de propósito:
+  o `grs-iq-rx` abre um RTL-SDR de verdade e, sem dongle, sai com
+  `EXIT_FAILURE`. Use `docker compose --profile rx up -d --build`. Em Docker
+  Desktop no Windows **não há passagem de USB para a VM** — ali o `grs-iq-rx`
+  roda no host, ou não roda.
+- **O demodulador erra bits mesmo sem ruído.** Com IQ sintético, sem ruído,
+  sem Doppler e sem desvio de relógio, 5 de 20 raw packets saem com byte
+  errado — sempre o mesmo erro, sempre no 4º pacote. O espaçamento entre
+  pacotes é de 803 bits onde o frame tem 800: o sincronismo de tempo deriva.
+  Reproduza com `tools/inject_iq.py` + `tools/collect_packets.py`. É o
+  próximo problema de DSP, e é o argumento mais forte para terminar o
+  `grs-iq-recorder`: sem captura e replay, cada tentativa de correção depende
+  de uma passagem ao vivo para ser avaliada.
+- **Rebuild depois de mexer num bloco de RF.** `docker compose --profile rx
+  build <serviço>`. O `docker-compose.dev.yml` NÃO monta os três adotados
+  (dois são C, e montar o Python esconderia o ref pinado), então uma edição
+  em `repos/` não aparece sem rebuild — e o serviço segue rodando o código
+  antigo, em silêncio.
+- **Não "atualize para a `main`" os blocos de RF.** Em dois dos três é
+  regressão: a `main` do `grs-demodulator` e a `dev` não rodam, e a `main` do
+  `grs-syncword-detector` não compila E trocou a busca bit a bit por uma
+  alinhada a byte — que erra o syncword em 7 de cada 8 casos, porque o que sai
+  do demodulador não tem sincronismo de byte. As refs pinadas em `repos.txt`
+  foram escolhidas compilando cada uma. Ver `docs/rx-datapath.md`.
+- **O RTL-SDR não aceita 48 kS/s.** Os intervalos válidos são 225001–300000 e
+  900001–3200000 S/s, e fora deles o driver **não dá erro** — entrega outra
+  taxa, calado. A constante `DEMOD_DEFAULT_SAMPLE_RATE` do `grs-demodulator` é
+  48 kHz, ou seja, inalcançável: ou ele ganha decimação, ou passa a trabalhar
+  na taxa do SDR. Por isso o compose usa 240 kS/s (válido, e 50 amostras por
+  símbolo exatas a 4800 baud).
+- **A frequência RX do `.env` é um EXEMPLO**, como as coordenadas `GS_*`.
+  145.9 MHz é a beacon do **FS-1**. A modulação do FS-2 está confirmada
+  (2GFSK, syncword `BA 67 54 7E`); a frequência e o baud dependem da
+  coordenação IARU. Trocar antes de qualquer campanha de gravação real.
+- **A :5555 colide com o `grs-modulator`** (uplink, tópico `tx_data`). Subir
+  RX e TX na mesma estação exige realocar uma das pontas.
 - **O card do satélite no painel atrasa até ~45 s.** Ele lê
   `satellite_tracking_status` (escrito a cada 30 s) e a página busca a cada
   15 s, enquanto o rotor vem ao vivo. O número do rotor é o atual.
@@ -170,6 +227,17 @@ leitura no TC Scheduler e o GRS Manager sem acesso ao banco; painel único
 tracking, trazidos da branch da Laura; Rotor Manager
 copiado para dentro do Station Manager; bootstrap sem submódulos; verificação
 do contrato de schema no boot.
+
+Feito nos Épicos A e B da fatia de RX: os três blocos adotados entraram por
+fork em `nanosat-gs`, branch `station`, com refs escolhidas lendo e compilando
+o código; o `grs-iq-recorder` nasceu com esqueleto hexagonal, `CaptureProfile`
+`grs-rx-fs2` e contrato SigMF versionado; e **o cano de recepção passa sinal
+ponta a ponta** — IQ loteado, bits publicados, e um serviço em volta do
+detector que emite raw packets na 5558. Provado sem rádio, com IQ sintético.
+
+Em aberto na fatia: a deriva do sincronismo de tempo (ver armadilhas), a
+gravação e o replay (Épico C, `grs-iq-recorder` ainda é só esqueleto), e o
+baud real do FS-2.
 
 Em aberto: encoders/moduladores (transmissão real) — enquanto não existirem, o
 `sent` do fim da janela é inferência, não confirmação; parametrizar o

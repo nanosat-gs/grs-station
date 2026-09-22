@@ -126,7 +126,21 @@ foreach ($entry in $entries) {
         # advice.detachedHead=false: a spacelab-tracking é clonada numa tag, e o
         # aviso de 'detached HEAD' do git aí é esperado, não um problema.
         git -c advice.detachedHead=false clone --quiet --branch $entry.Ref $entry.Url $path
-        if ($LASTEXITCODE -ne 0) { Write-Host "  Falha ao clonar $($entry.Name)" -ForegroundColor Red; exit 1 }
+        if ($LASTEXITCODE -ne 0) {
+            # `--branch` aceita branch e TAG, mas não SHA de commit. Nenhuma
+            # entrada do repos.txt pina um SHA hoje, mas já pinou — e voltará
+            # a pinar no dia em que algum bloco precisar de um ref sem nome.
+            # Sem este fallback, o bootstrap morre com um erro do git que
+      # não explica nada.
+            Write-Host "  ref não é branch/tag; clonando e fazendo checkout de $($entry.Ref)"
+            git clone --quiet $entry.Url $path
+            if ($LASTEXITCODE -ne 0) { Write-Host "  Falha ao clonar $($entry.Name)" -ForegroundColor Red; exit 1 }
+            git -C $path -c advice.detachedHead=false checkout --quiet $entry.Ref
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "  Falha no checkout de $($entry.Ref) em $($entry.Name)" -ForegroundColor Red
+                exit 1
+            }
+        }
         continue
     }
 
@@ -157,7 +171,7 @@ if ($Dev) {
     Write-Host "`n=== instalando em modo editavel ===" -ForegroundColor Cyan
     # A ordem importa: a biblioteca primeiro, para que os servicos resolvam
     # contra a arvore de trabalho e nao baixem a tag publicada do GitHub.
-    foreach ($name in @("spacelab-tracking", "grs-station-manager", "grs-manager", "grs-tc-scheduler")) {
+    foreach ($name in @("spacelab-tracking", "grs-station-manager", "grs-manager", "grs-tc-scheduler", "grs-iq-recorder")) {
         $path = Join-Path $reposDir $name
         if (-not (Test-Path $path)) { Write-Warning "  pulando $name (nao clonado)"; continue }
         Write-Host "  pip install -e repos/$name"

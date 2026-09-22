@@ -109,7 +109,15 @@ for entry in "${entries[@]}"; do
     echo "  clonando $url"
     # advice.detachedHead=false: a spacelab-tracking é clonada numa tag, e o
     # aviso de 'detached HEAD' do git aí é esperado, não um problema.
-    git -c advice.detachedHead=false clone --quiet --branch "$ref" "$url" "$path"
+    if ! git -c advice.detachedHead=false clone --quiet --branch "$ref" "$url" "$path"; then
+      # `--branch` aceita branch e TAG, mas não SHA de commit. Nenhuma
+      # entrada do repos.txt pina um SHA hoje, mas já pinou — e voltará
+      # docs/rx-datapath.md), e sem este fallback o bootstrap morreria ali
+      # com um erro do git que não explica nada.
+      echo "  ref não é branch/tag; clonando e fazendo checkout de $ref"
+      git clone --quiet "$url" "$path" || { echo "  ERRO: falha ao clonar $name" >&2; exit 1; }
+      git -C "$path" -c advice.detachedHead=false checkout --quiet "$ref"         || { echo "  ERRO: falha no checkout de $ref em $name" >&2; exit 1; }
+    fi
     continue
   fi
 
@@ -136,7 +144,7 @@ if [ "$DEV" = 1 ]; then
   echo "=== instalando em modo editável ==="
   # A ordem importa: a biblioteca primeiro, para que os serviços resolvam
   # contra a árvore de trabalho e não baixem a tag publicada do GitHub.
-  for name in spacelab-tracking grs-station-manager grs-manager grs-tc-scheduler; do
+  for name in spacelab-tracking grs-station-manager grs-manager grs-tc-scheduler grs-iq-recorder; do
     path="$REPOS_DIR/$name"
     [ -d "$path" ] || { echo "  pulando $name (não clonado)"; continue; }
     echo "  pip install -e repos/$name"

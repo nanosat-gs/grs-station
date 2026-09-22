@@ -20,3 +20,50 @@ grs-tc-scheduler      https://github.com/nanosat-gs/grs-tc-scheduler.git       m
 # O TC Generator NÃO fica na org: é um fork de spacelab-ufsc/grs-tc-generator,
 # e movê-lo quebraria o fluxo de pull request para o upstream.
 grs-tc-generator      https://github.com/nanosat-gs/grs-tc-generator.git      main
+
+# ---------------------------------------------------------------------------
+# Caminho de dados RX (FS-2) — FORKS em nanosat-gs de repositórios do
+# spacelab-ufsc, GPL v3.
+#
+# Mesma escolha do TC Generator: forkar em vez de consumir o upstream direto.
+# Temos push nos forks, então o trabalho de integração vira commit de verdade
+# em vez de remendo aplicado no `docker build` — e o PR de volta para o
+# spacelab-ufsc continua funcionando, porque a relação de fork foi preservada.
+#
+# Todos pinam a branch `station`, que é a que a estação constrói. Ela nasce do
+# ref que de fato roda em cada repositório (veja abaixo), e não do default do
+# fork — que veio do upstream e, em dois dos três, é a versão que não roda.
+# Assim `dev`, `fix/demod` e `main` continuam significando o que significam
+# lá em cima. O porquê de cada base está em docs/rx-datapath.md; leia ANTES
+# de rebasear a `station` em cima da `main`.
+#
+# O Dockerfile de cada um mora em docker/, aqui no orquestrador. É herança de
+# quando eram repositórios de terceiros; com fork já dá para movê-los para
+# dentro de cada repo, e isso continua valendo a pena porque mantém o diff
+# contra o upstream pequeno.
+#
+# Licenciamento: GPL v3 nos três. Entram como processos separados falando
+# ZMQ, sem linkagem, o que tende a agregação e não a obra derivada. As nossas
+# modificações são GPL e vão junto — o que os forks públicos já satisfazem.
+# ---------------------------------------------------------------------------
+
+# `station` nasce de `dev`: a impl. C/RTL-SDR, a que de fato recebe. A
+# `dev_py` é um RX pela metade (herdou wrappers só-TX do
+# spacelab-transmitter; falta o rx()).
+grs-iq-rx             https://github.com/nanosat-gs/grs-iq-rx.git             station
+
+# `station` nasce de `fix/demod`, NÃO de `dev`. A `dev` não roda:
+# `from gmsk import GMSK` não resolve, e o laço desempacota dois valores de
+# uma função que devolve três.
+grs-demodulator       https://github.com/nanosat-gs/grs-demodulator.git       station
+
+# `station` nasce de 01e3d04, NÃO da `main`. Na main o syncword.h e o
+# syncword.c declaram tipos diferentes para SyncWord: o arquivo não compila
+# contra o próprio header. Em 01e3d04 a busca é bit a bit — que é o que um
+# fluxo vindo do demodulador exige, por não ter sincronismo de byte.
+grs-syncword-detector https://github.com/nanosat-gs/grs-syncword-detector.git station
+
+# ---------------------------------------------------------------------------
+# GRS IQ Recorder — bloco nosso, captura e replay do fluxo de IQ.
+# ---------------------------------------------------------------------------
+grs-iq-recorder       https://github.com/nanosat-gs/grs-iq-recorder.git       main

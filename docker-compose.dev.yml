@@ -30,3 +30,15 @@ services:
     volumes:
       - ./repos/grs-tc-generator/app:/app/app
       - ./repos/grs-tc-generator/run.py:/app/run.py
+
+  # Caminho de dados RX (profile `rx`). Só o gravador ganha bind mount: ele é
+  # nosso e é Python instalado em modo editável. Os três blocos adotados não
+  # entram aqui de propósito —
+  #   - grs-iq-rx e grs-syncword-detector são C: montar a fonte não recarrega
+  #     nada, o binário é da imagem. Mudança neles exige rebuild;
+  #   - grs-demodulator é Python, mas montar a árvore por cima esconderia o
+  #     carry patch e o ref pinado, que é justamente o que se quer exercitar.
+  grs-iq-recorder:
+    volumes:
+      - ./repos/grs-iq-recorder/src:/app/src
+      - iq_captures:/app/captures

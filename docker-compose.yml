@@ -180,9 +180,153 @@ services:
     networks:
       - spacelab-network
 
+
+  # --- Caminho de dados RX (FS-2) ---------------------------------------
+  #
+  # Os quatro serviços abaixo estão atrás do profile `rx` e NÃO sobem num
+  # `docker compose up` comum. Para levantá-los:
+  #
+  #   docker compose --profile rx up -d --build
+  #
+  # O profile não é timidez: o `grs-iq-rx` abre um RTL-SDR de verdade, e sem
+  # dongle ele sai com EXIT_FAILURE. Numa máquina de desenvolvimento sem
+  # hardware, isso deixaria a estação inteira vermelha por causa de um
+  # dispositivo que ninguém tem ali. O rotor já resolve o mesmo problema pelo
+  # `--rotor mock`; aqui a chave é o profile.
+  #
+  # Três dos quatro são repositórios de TERCEIROS (spacelab-ufsc, GPL v3), e
+  # por isso o `dockerfile:` deles aponta para docker/ aqui no orquestrador —
+  # não temos push naqueles repositórios para pôr um Dockerfile lá dentro.
+  # Ver docs/rx-datapath.md, e repos.txt para as refs pinadas.
+
+  grs-iq-rx:
+    build:
+      context: ./repos/grs-iq-rx
+      dockerfile: ../../docker/grs-iq-rx.Dockerfile
+    container_name: spacelab-grs-iq-rx
+    profiles: ["rx"]
+    command:
+      - grs_iq_rx
+      # -v não é opcional: o main.c só escreve em stderr quando verbose está
+      # ligado. Sem ele, "não achou o SDR" e "não conseguiu dar bind na 5556"
+      # são o mesmo silêncio.
+      - -v
+      # ATENÇÃO: a frequência é PROVISÓRIA — 145.9 MHz é a beacon do FS-1. A
+      # modulação do FS-2 está confirmada (2GFSK, syncword BA 67 54 7E); a
+      # FREQUÊNCIA e o BAUD dependem da coordenação IARU. Mesma situação das
+      # coordenadas GS_*: um exemplo para o cano subir. Trocar antes de
+      # qualquer campanha de gravação real.
+      - --frequency=${RX_CENTER_FREQ_HZ:-145900000}
+      # 240 kS/s. O RTL-SDR só aceita 225001–300000 e 900001–3200000 S/s:
+      # pedir 48 kS/s (a constante do demodulador) NÃO dá erro, o driver
+      # entrega outra taxa calado. E 240000/4800 = 50 amostras por símbolo,
+      # exato. Ver docs/rx-datapath.md.
+      - --sample-rate=${RX_SAMPLE_RATE_HZ:-240000}
+      # 0 = ganho automático (AGC do tuner).
+      - --gain=${RX_GAIN:-0}
+    ports:
+      - "5556:5556"   # ZMQ PUB — IQ em cf32_le, sem frame de tópico
+    # O dongle precisa ser passado para dentro do container. Descomente na
+    # máquina que tem o hardware; em Docker Desktop no Windows isto NÃO
+    # funciona (não há passagem de USB para a VM) — ali o caminho é rodar o
+    # grs-iq-rx no host, ou usar replay.
+    # devices:
+    #   - /dev/bus/usb:/dev/bus/usb
+    #
+    # "no", e não "unless-stopped": sem SDR o processo sai na hora, e um
+    # restart automático viraria laço de falha enchendo o log.
+    restart: "no"
+    networks:
+      - spacelab-network
+
+  grs-demodulator:
+    build:
+      context: ./repos/grs-demodulator
+      dockerfile: ../../docker/grs-demodulator.Dockerfile
+    container_name: spacelab-grs-demodulator
+    profiles: ["rx"]
+    ports:
+      - "5555:5555"   # ZMQ PUB — bits. Ver a colisão de porta em docs/rx-datapath.md
+    environment:
+      # Estes endereços eram HARDCODED em localhost, o que dentro de um
+      # container significa que o demodulador assinava a si mesmo: subia
+      # saudável, bloqueava no recv() e não processava uma amostra. Agora são
+      # configuração.
+      GRS_DEMOD_IQ_SOURCE: tcp://grs-iq-rx:5556
+      GRS_DEMOD_BITS_BIND: tcp://*:5555
+      # Tem de bater com o --sample-rate do grs-iq-rx, ou o sincronismo de
+      # tempo trabalha com o número errado de amostras por símbolo.
+      GRS_DEMOD_SAMPLE_RATE_HZ: ${RX_SAMPLE_RATE_HZ:-240000}
+      # BAUD A CONFIRMAR: 4800 é herança do código, não confirmação do
+      # enlace do FS-2. Ver docs/rx-datapath.md.
+      GRS_DEMOD_BAUD: ${RX_BAUD:-4800}
+      GRS_DEMOD_BT: ${RX_BT:-0.5}
+    depends_on:
+      - grs-iq-rx
+    restart: "no"
+    networks:
+      - spacelab-network
+
+  grs-syncword-detector:
+    build:
+      context: ./repos/grs-syncword-detector
+      dockerfile: ../../docker/grs-syncword-detector.Dockerfile
+    container_name: spacelab-grs-syncword-detector
+    profiles: ["rx"]
+    ports:
+      - "5558:5558"   # ZMQ PUB — raw packets. É daqui que a fatia de decode se serve
+    environment:
+      GRS_SYNCWORD_BITS_SOURCE: tcp://grs-demodulator:5555
+      GRS_SYNCWORD_PACKETS_BIND: tcp://*:5558
+      # BA 67 54 7E é o syncword do NGHam usado pelo enlace do FloripaSat.
+      GRS_SYNCWORD_BYTES: ${RX_SYNCWORD:-BA67547E}
+      # Quantos bytes publicar depois do syncword. Este estágio NÃO sabe onde
+      # o frame termina — o comprimento vive dentro do NGHam, e parsear NGHam
+      # é trabalho do decodificador. Então publica-se uma fatia generosa e o
+      # decodificador pega o que precisa. 255 cobre o maior frame NGHam.
+      GRS_SYNCWORD_PACKET_BYTES: ${RX_PACKET_BYTES:-255}
+      # Tolerância de erro de bit no casamento do syncword. Passagem real
+      # nunca é limpa, e um detector que só aceita syncword perfeito descarta
+      # frames que a correção de erro recuperaria.
+      GRS_SYNCWORD_MAX_ERRORS: ${RX_SYNCWORD_MAX_ERRORS:-1}
+    depends_on:
+      - grs-demodulator
+    restart: "no"
+    networks:
+      - spacelab-network
+
+  grs-iq-recorder:
+    build: ./repos/grs-iq-recorder
+    container_name: spacelab-grs-iq-recorder
+    profiles: ["rx"]
+    environment:
+      RECORDER_PROFILE: ${RECORDER_PROFILE:-grs-rx-fs2}
+      # Conecta no PUB que o grs-iq-rx binda. No replay isto se inverte: o
+      # gravador é quem binda a :5556, e o grs-iq-rx tem de estar DESLIGADO.
+      RECORDER_IQ_SOURCE_ADDRESS: tcp://grs-iq-rx:5556
+      RECORDER_IQ_PUBLISH_ADDRESS: tcp://*:5556
+      RECORDER_CAPTURE_DIR: /app/captures
+      RECORDER_MAX_CAPTURE_SECONDS: ${RECORDER_MAX_CAPTURE_SECONDS:-60}
+      # Sem esta variável o gravador grava do mesmo jeito, só não indexa: a
+      # captura é o artefato, o índice é conveniência.
+      PG_DATABASE_URL: postgresql+psycopg2://${DB_USER:-admin}:${DB_PASSWORD:-admin}@postgres:5432/${DB_NAME:-tc_generator}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      # Volume nomeado, e não bind mount: a 240 kS/s são 1,92 MB/s, ~115 MB
+      # por minuto. Uma campanha despejada dentro da árvore de trabalho seria
+      # gigabytes indo para o build context no próximo `docker build`.
+      - iq_captures:/app/captures
+    networks:
+      - spacelab-network
+
 volumes:
   postgres_data:
   tracking_data:
+  # Capturas de IQ. Volume nomeado porque elas têm de sobreviver ao container
+  # e não podem cair dentro da árvore de trabalho.
+  iq_captures:
 
 networks:
   spacelab-network:
