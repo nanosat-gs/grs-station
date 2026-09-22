@@ -28,6 +28,7 @@ cada base.
 | **Demodulator** | `nanosat-gs/grs-demodulator` @ `station` | IQ -> bits na 5555, um byte por bit |
 | **Syncword Detector** | `nanosat-gs/grs-syncword-detector` @ `station` | Biblioteca C + serviço: raw packets na 5558 |
 | **IQ Recorder** | `nanosat-gs/grs-iq-recorder` | **Nosso.** Captura, replay e índice do fluxo de IQ |
+| **SDR Sim** | `nanosat-gs/grs-sdr-sim` | **Nosso.** SDR virtual: substituto do `grs-iq-rx` para testes |
 
 A branch `station` nasce do ref que de fato roda em cada repositório, e não do
 default do fork — que veio do upstream e, em dois dos três, é a versão que não
@@ -170,6 +171,11 @@ porque sem isso um comando ficava em `queued` para sempre. Só passagem
 - **Satélite sem telecomando à espera não entra no plano.** O Scheduler usa
   `JOIN telecommands`, não `LEFT JOIN`. Ele continua aparecendo no painel com
   posição, porque a posição vem de outra consulta.
+- **`rx` e `rxsim` não sobem juntos.** O `grs-sdr-sim` e o `grs-iq-rx` BINDAM
+  a mesma :5556; os dois ao mesmo tempo disputam a porta e quem perde cai em
+  silêncio. `--profile rxsim` para testar sem hardware, `--profile rx` com
+  dongle. Tudo o mais é idêntico — o demodulador e o detector não sabem qual
+  dos dois está do outro lado, que é o ponto.
 - **O profile `rx` não sobe num `docker compose up` comum.** É de propósito:
   o `grs-iq-rx` abre um RTL-SDR de verdade e, sem dongle, sai com
   `EXIT_FAILURE`. Use `docker compose --profile rx up -d --build`. Em Docker

@@ -244,7 +244,8 @@ services:
       context: ./repos/grs-demodulator
       dockerfile: ../../docker/grs-demodulator.Dockerfile
     container_name: spacelab-grs-demodulator
-    profiles: ["rx"]
+    # Nos dois profiles: o demodulador é o mesmo, com rádio ou com simulador.
+    profiles: ["rx", "rxsim"]
     ports:
       - "5555:5555"   # ZMQ PUB — bits. Ver a colisão de porta em docs/rx-datapath.md
     environment:
@@ -252,7 +253,7 @@ services:
       # container significa que o demodulador assinava a si mesmo: subia
       # saudável, bloqueava no recv() e não processava uma amostra. Agora são
       # configuração.
-      GRS_DEMOD_IQ_SOURCE: tcp://grs-iq-rx:5556
+      GRS_DEMOD_IQ_SOURCE: ${RX_IQ_SOURCE:-tcp://grs-iq-rx:5556}
       GRS_DEMOD_BITS_BIND: tcp://*:5555
       # Tem de bater com o --sample-rate do grs-iq-rx, ou o sincronismo de
       # tempo trabalha com o número errado de amostras por símbolo.
@@ -261,8 +262,8 @@ services:
       # enlace do FS-2. Ver docs/rx-datapath.md.
       GRS_DEMOD_BAUD: ${RX_BAUD:-4800}
       GRS_DEMOD_BT: ${RX_BT:-0.5}
-    depends_on:
-      - grs-iq-rx
+    # Sem depends_on do grs-iq-rx: no profile rxsim ele não existe, e o
+    # demodulador apenas reconecta até o publicador aparecer.
     restart: "no"
     networks:
       - spacelab-network
@@ -272,7 +273,7 @@ services:
       context: ./repos/grs-syncword-detector
       dockerfile: ../../docker/grs-syncword-detector.Dockerfile
     container_name: spacelab-grs-syncword-detector
-    profiles: ["rx"]
+    profiles: ["rx", "rxsim"]
     ports:
       - "5558:5558"   # ZMQ PUB — raw packets. É daqui que a fatia de decode se serve
     environment:
@@ -295,10 +296,52 @@ services:
     networks:
       - spacelab-network
 
+  # SDR VIRTUAL — profile `rxsim`, e não `rx`.
+  #
+  # Dois profiles porque são dois mundos que não podem subir juntos: o
+  # grs-sdr-sim BINDA a :5556, exatamente como o grs-iq-rx. Os dois ao mesmo
+  # tempo disputam a porta, e quem perde cai em silêncio.
+  #
+  #   docker compose --profile rxsim up -d --build   sem hardware
+  #   docker compose --profile rx    up -d --build   com dongle
+  #
+  # Tudo o mais é idêntico: mesmo envelope, mesma porta, mesmo `tune`. O
+  # demodulador e o detector não têm como saber qual dos dois está do outro
+  # lado — que é o ponto.
+  grs-sdr-sim:
+    build: ./repos/grs-sdr-sim
+    container_name: spacelab-grs-sdr-sim
+    profiles: ["rxsim"]
+    command:
+      - python
+      - -m
+      - sdr_sim.main
+      - --bind=tcp://*:5556
+      - --frequency=${RX_CENTER_FREQ_HZ:-145900000}
+      - --sample-rate=${RX_SAMPLE_RATE_HZ:-240000}
+      - --baud=${RX_BAUD:-4800}
+      - --emitters=${SIM_EMITTERS:-fs2}
+      - --snr-db=${SIM_SNR_DB:-20}
+      # 0 desliga o Doppler. Com um valor, o sinal varre a banda ao longo de
+      # --pass-duration, como numa passagem de verdade.
+      - --doppler-hz=${SIM_DOPPLER_HZ:-0}
+      - --pass-duration=${SIM_PASS_DURATION:-600}
+      # Semente fixa: sem ela, um teste que falha uma vez em dez não é
+      # investigável.
+      - --seed=${SIM_SEED:-1}
+      # Descomente para o simulador OBEDECER ao sintetizador — é assim que a
+      # malha de sintonia fecha sem hardware.
+      # - --tune-source=tcp://grs-frequency-synthesizer:5557
+    ports:
+      - "5556:5556"
+    restart: "no"
+    networks:
+      - spacelab-network
+
   grs-iq-recorder:
     build: ./repos/grs-iq-recorder
     container_name: spacelab-grs-iq-recorder
-    profiles: ["rx"]
+    profiles: ["rx", "rxsim"]
     environment:
       RECORDER_PROFILE: ${RECORDER_PROFILE:-grs-rx-fs2}
       # Conecta no PUB que o grs-iq-rx binda. No replay isto se inverte: o

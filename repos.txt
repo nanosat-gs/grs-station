@@ -64,6 +64,11 @@ grs-demodulator       https://github.com/nanosat-gs/grs-demodulator.git       st
 grs-syncword-detector https://github.com/nanosat-gs/grs-syncword-detector.git station
 
 # ---------------------------------------------------------------------------
-# GRS IQ Recorder — bloco nosso, captura e replay do fluxo de IQ.
+# Blocos nossos.
 # ---------------------------------------------------------------------------
 grs-iq-recorder       https://github.com/nanosat-gs/grs-iq-recorder.git       main
+
+# SDR virtual: substituto direto do grs-iq-rx, mesmo envelope e mesma porta.
+# Fica no profile `rxsim`, e é o que permite exercitar o caminho de recepção
+# inteiro — inclusive a sintonia — sem dongle e sem passagem de satélite.
+grs-sdr-sim           https://github.com/nanosat-gs/grs-sdr-sim.git           main
