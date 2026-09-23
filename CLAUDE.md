@@ -82,7 +82,7 @@ docker compose exec tc-scheduler python tools/station_demo.py prepare --code SAT
 docker compose exec tc-scheduler python tools/station_demo.py simulate-pass --code SAT-001
 ```
 
-Testes: `.\test-all.ps1` roda a suíte de cada repo mais o e2e daqui.
+Testes: `test-all.ps1` roda a suíte de cada repo mais os dois e2e daqui — o do rotor e o do **caminho de recepção**, este último contra a fixture versionada em `tests/fixtures/`, em processo e sem Docker.
 
 ## Decisões de arquitetura, e por quê
 

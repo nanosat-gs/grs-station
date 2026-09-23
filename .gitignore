@@ -15,3 +15,11 @@ htmlcov/
 venv/
 .idea/
 .vscode/
+
+# Capturas de IQ são grandes (1,9 MB/s a 240 kS/s) e não entram no git —
+# EXCETO as fixtures de teste, que são curtas, sintéticas e versionadas de
+# propósito: sem um artefato fixo não há regressão, só re-execução.
+*.sigmf-data
+*.sigmf-meta
+!tests/fixtures/**/*.sigmf-data
+!tests/fixtures/**/*.sigmf-meta

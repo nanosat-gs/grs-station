@@ -1,0 +1,22 @@
+{
+  "global": {
+    "core:datatype": "cf32_le",
+    "core:sample_rate": 240000.0,
+    "core:version": "1.0.0",
+    "core:recorder": "grs-iq-recorder",
+    "core:description": "GRS-RX / downlink FS-2 — 2GFSK, NGHam, syncword BA 67 54 7E",
+    "grs:contract_version": "1.0.0",
+    "grs:profile": "grs-rx-fs2",
+    "grs:frequency_source": "fixed",
+    "grs:rf_path": "antena -> RTL-SDR (grs-iq-rx) -> ZMQ PUB :5556",
+    "core:sha512": "d8a97947cfd99353cc8ec425367a260cf136a70810712978137bac4e557c7b66bede20138ca9a1e4810dedc2746389a3c432b649e6728631941e38885e069f68"
+  },
+  "captures": [
+    {
+      "core:sample_start": 0,
+      "core:frequency": 145900000.0,
+      "core:datetime": "2026-09-23T14:24:58.434727Z"
+    }
+  ],
+  "annotations": []
+}

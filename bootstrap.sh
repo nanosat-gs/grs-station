@@ -144,7 +144,7 @@ if [ "$DEV" = 1 ]; then
   echo "=== instalando em modo editável ==="
   # A ordem importa: a biblioteca primeiro, para que os serviços resolvam
   # contra a árvore de trabalho e não baixem a tag publicada do GitHub.
-  for name in spacelab-tracking grs-station-manager grs-manager grs-tc-scheduler grs-iq-recorder; do
+  for name in spacelab-tracking grs-station-manager grs-manager grs-tc-scheduler grs-iq-recorder grs-sdr-sim grs-demodulator; do
     path="$REPOS_DIR/$name"
     [ -d "$path" ] || { echo "  pulando $name (não clonado)"; continue; }
     echo "  pip install -e repos/$name"

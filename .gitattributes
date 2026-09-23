@@ -1,2 +1,6 @@
 * text=auto
 *.sh text eol=lf
+# Captura de IQ é binária. Sem esta linha, uma conversão de fim de linha
+# dentro das amostras corromperia a fixture EM SILÊNCIO — e o teste de
+# regressão passaria a medir outra coisa sem ninguém notar.
+*.sigmf-data binary
