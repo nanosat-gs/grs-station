@@ -179,7 +179,15 @@ if ($Dev) {
         python -m pip install --quiet -e $path
         if ($LASTEXITCODE -ne 0) { Write-Warning "  falhou em $name" }
     }
+    # Confere o código de saída: este install é o que traz o pytest, e sem ele
+    # o test-all.ps1 reporta TODOS os repositórios como falhos sem dizer por quê.
+    Write-Host "  pip install -e .[dev]"
     python -m pip install --quiet -e "$root[dev]"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning ("Falhou instalar o proprio orquestrador em modo editavel. " +
+                       "Sem isso nao ha pytest, e o test-all.ps1 vai falhar em tudo. " +
+                       "Rode sem --quiet para ver o erro: python -m pip install -e `"$root[dev]`"")
+    }
 }
 
 Write-Host "`n=== tags da spacelab-tracking ===" -ForegroundColor Cyan

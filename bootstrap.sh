@@ -150,7 +150,10 @@ if [ "$DEV" = 1 ]; then
     echo "  pip install -e repos/$name"
     python -m pip install --quiet -e "$path" || echo "  AVISO: falhou em $name"
   done
-  python -m pip install --quiet -e "$ROOT[dev]"
+  # Confere o codigo de saida: este install e o que traz o pytest, e sem ele o
+  # test-all reporta TODOS os repositorios como falhos sem dizer por que.
+  echo "  pip install -e .[dev]"
+  python -m pip install --quiet -e "$ROOT[dev]" || echo     "AVISO: falhou instalar o orquestrador em modo editavel. Sem isso nao ha pytest." >&2
 fi
 
 echo

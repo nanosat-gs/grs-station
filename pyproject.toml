@@ -20,5 +20,17 @@ dev = [
     "grs-manager @ git+https://github.com/nanosat-gs/grs-manager@main",
 ]
 
+# Este projeto NÃO tem pacote nenhum para descobrir, e é preciso dizer isso
+# em voz alta. Sem estas duas linhas o setuptools tenta adivinhar sozinho, vê
+# `repos/` e `docker/` na raiz e aborta com "Multiple top-level packages
+# discovered in a flat-layout".
+#
+# A falha era especialmente cruel porque o `bootstrap.ps1 -Dev` instala isto
+# com --quiet e não conferia o código de saída: o pytest simplesmente não era
+# instalado, e o `test-all.ps1` reportava TODOS os repositórios como falhos,
+# sem uma linha de erro. O sintoma não apontava nem de longe para a causa.
+[tool.setuptools]
+py-modules = []
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
