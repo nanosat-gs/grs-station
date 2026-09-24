@@ -42,8 +42,15 @@ from iq_recorder.adapters.numpy_psd_view import NumpyPsdView  # noqa: E402
 
 FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "fs2-2gfsk-4800"
 
-# O que o grs-sdr-sim plantou na fixture. Ver o cabeçalho do .sigmf-meta.
-SYNCWORD = bytes((0xBA, 0x67, 0x54, 0x7E))
+# O que o grs-sdr-sim plantou na fixture.
+#
+# 5D E6 2A 7E é o NGH_SYNC da implementação de referência do NGHam. NÃO
+# BA 67 54 7E, que é o MESMO vetor com os bits de cada byte invertidos — o
+# valor que o documento da fatia carregava, e que o simulador e o detector
+# usavam em acordo mútuo e em desacordo com o satélite. Uma gravação real do
+# FloripaSat-1 mostrou a diferença: BA 67 54 7E em MSB acha ZERO pacotes e
+# 5D E6 2A 7E acha dezenove.
+SYNCWORD = bytes((0x5D, 0xE6, 0x2A, 0x7E))
 PAYLOAD = bytes(range(64))
 PREAMBLE_BYTES = 32
 
@@ -54,7 +61,7 @@ WINDOW_SYMBOLS = 2400
 
 
 def bits_of(data: bytes) -> list[int]:
-    """MSB primeiro, a ordem em que BA 67 54 7E está escrito."""
+    """MSB primeiro, a ordem em que o NGH_SYNC do ngham.c está escrito."""
     return [(byte >> (7 - i)) & 1 for byte in data for i in range(8)]
 
 
@@ -208,7 +215,7 @@ def test_o_payload_depois_do_syncword_e_o_que_foi_transmitido(demodulated_bits):
 
 
 def test_o_preambulo_alterna_antes_do_syncword(demodulated_bits):
-    """0x55 a cada bit. Se o preâmbulo sai embaralhado mas o syncword é achado,
+    """0xAA a cada bit. Se o preâmbulo sai embaralhado mas o syncword é achado,
     o problema é de recuperação de tempo no começo da rajada — e este teste
     separa esse caso de um defeito de enquadramento."""
     offsets = find_all(demodulated_bits, bits_of(SYNCWORD))

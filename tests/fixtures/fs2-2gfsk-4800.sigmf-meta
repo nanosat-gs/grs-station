@@ -9,13 +9,13 @@
     "grs:profile": "grs-rx-fs2",
     "grs:frequency_source": "fixed",
     "grs:rf_path": "antena -> RTL-SDR (grs-iq-rx) -> ZMQ PUB :5556",
-    "core:sha512": "d8a97947cfd99353cc8ec425367a260cf136a70810712978137bac4e557c7b66bede20138ca9a1e4810dedc2746389a3c432b649e6728631941e38885e069f68"
+    "core:sha512": "4c75bf205d97e22f8e7d4f27d475b11986e9ceed4d785dcfebac88c97f2dcc30904a3231bf1f1719fee14191f95e1649417dc87f4a8c407ff2711a8a637509d1"
   },
   "captures": [
     {
       "core:sample_start": 0,
       "core:frequency": 145900000.0,
-      "core:datetime": "2026-09-23T14:24:58.434727Z"
+      "core:datetime": "2026-09-24T12:46:51.271395Z"
     }
   ],
   "annotations": []
