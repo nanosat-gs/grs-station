@@ -4,3 +4,7 @@
 # dentro das amostras corromperia a fixture EM SILÊNCIO — e o teste de
 # regressão passaria a medir outra coisa sem ninguém notar.
 *.sigmf-data binary
+# Gravação de áudio é binária, pelo mesmo motivo da captura de IQ: uma
+# conversão de fim de linha dentro das amostras corromperia a fixture em
+# silêncio, e o teste passaria a medir outra coisa.
+*.wav binary

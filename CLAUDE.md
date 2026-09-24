@@ -82,7 +82,7 @@ docker compose exec tc-scheduler python tools/station_demo.py prepare --code SAT
 docker compose exec tc-scheduler python tools/station_demo.py simulate-pass --code SAT-001
 ```
 
-Testes: `test-all.ps1` roda a suíte de cada repo mais os dois e2e daqui — o do rotor e o do **caminho de recepção**, este último contra a fixture versionada em `tests/fixtures/`, em processo e sem Docker.
+Testes: `test-all.ps1` roda a suíte de cada repo mais os três e2e daqui — o do rotor, o do **caminho de recepção** contra IQ sintético, e o do caminho de recepção contra **sinal real do FloripaSat-1** gravado do ar. Os dois últimos rodam em processo, sem Docker; ver `tests/fixtures/README.md`.
 
 ## Decisões de arquitetura, e por quê
 
@@ -194,6 +194,13 @@ porque sem isso um comando ficava em `queued` para sempre. Só passagem
   (dois são C, e montar o Python esconderia o ref pinado), então uma edição
   em `repos/` não aparece sem rebuild — e o serviço segue rodando o código
   antigo, em silêncio.
+- **O syncword do NGHam é `5D E6 2A 7E`, não `BA 67 54 7E`.** Os dois são o
+  mesmo vetor com os bits de cada byte invertidos, e o segundo circulou no
+  documento da fatia. Contra sinal real do FloripaSat-1, `BA 67 54 7E`
+  expandido MSB-first acha **zero** pacotes. O preâmbulo é `0xAA`, não `0x55`.
+  O erro sobreviveu porque o nosso simulador emitia o mesmo valor errado que o
+  detector procurava — transmissor e receptor concordando e ambos discordando
+  do satélite. `tests/test_rx_real_signal.py` guarda contra a reincidência.
 - **Não "atualize para a `main`" os blocos de RF.** Em dois dos três é
   regressão: a `main` do `grs-demodulator` e a `dev` não rodam, e a `main` do
   `grs-syncword-detector` não compila E trocou a busca bit a bit por uma
