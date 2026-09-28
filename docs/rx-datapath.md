@@ -16,10 +16,14 @@ Leia antes de "atualizar para a `main`": em dois dos três blocos, isso é uma
 ## O cano
 
 ```
-SDR ─▶ grs-iq-rx ── PUB :5556 (cf32_le) ─┬─▶ grs-demodulator ── PUB :5555 (bits) ─▶ [wrapper B3] ─▶ raw packets
-       (C/RTL-SDR)                       │
-                                         └──(tap)─▶ grs-iq-recorder ─▶ captura SigMF
+USRP N210 ─▶ grs-iq-rx/usrp ─┐
+  (UHD)      250k→240k       │
+RTL-SDR ──▶ grs-iq-rx (C) ───┼─ PUB :5556 (cf32_le, 240 kS/s) ─┬─▶ grs-demodulator ── PUB :5555 (bits) ─▶ grs-syncword-detector ─▶ PUB :5558 raw packets
+simulador ▶ grs-sdr-sim ─────┤  todos respondem por grs-iq-rx  │
+captura ──▶ grs-iq-replay ───┘                                 └──(tap)─▶ grs-iq-recorder ─▶ captura SigMF + índice
 ```
+
+Uma fonte de IQ por vez, cada uma no seu profile — ver "Profiles" no fim.
 
 | Porta | Quem BINDA | O quê |
 |---|---|---|
@@ -269,6 +273,27 @@ original sabia disso e o `fix/demod` regrediu.
 baud como a última incerteza de RF, mas a taxa de amostragem é uma segunda,
 independente dela.
 
+### E o USRP N210 tem a sua própria grade
+
+O rádio da estação é um USRP N210, não um RTL-SDR. Ele só gera
+**100 MHz / N**, e 240 kS/s não está nessa grade (÷ 416,67): o UHD também
+arredonda **sem erro**. E o demodulador não tolera diferença nenhuma —
+medido na `tools/bancada_demod.py`, com o sinal a 240 kS/s e o demodulador
+achando que era outra taxa:
+
+| Demodulador configurado para | Diferença | Pacotes íntegros |
+|---|---|---|
+| 240 000 | 0 | 60 de 60 |
+| 239 808 (100 MHz ÷ 417) | 0,08% | ~22 de 60 |
+| 240 385 (100 MHz ÷ 416) | 0,16% | 2 de 60 |
+
+Então a taxa do **cano** continua 240 kS/s para todas as fontes, e o
+receptor USRP (`grs-iq-rx/usrp`) pede **250 kS/s** ao N210 (exato, ÷ 400) e
+reamostra por **24/25** (exato) antes de publicar. Ida e volta
+240k → 250k → 240k pelo demodulador real: 60 de 60, de sinal limpo a SNR
+3 dB. Se o aparelho entregar uma taxa sem razão exata com a do cano, o
+receptor recusa conectar e diz por quê.
+
 ## Onde moram os arquivos, e por quê
 
 Os Dockerfiles ficaram aqui por herança de quando os blocos eram consumidos
@@ -280,7 +305,8 @@ As ferramentas de teste do cano também moram aqui, porque são da estação e n
 de nenhum bloco:
 
 ```
-docker/grs-iq-rx.Dockerfile
+docker/grs-iq-rx.Dockerfile         receptor C/RTL-SDR
+docker/grs-iq-rx-usrp.Dockerfile    receptor USRP (python3-uhd), pasta usrp/ do mesmo fork
 docker/grs-demodulator.Dockerfile
 docker/grs-syncword-detector.Dockerfile
 tools/inject_iq.py          publica IQ sintético no lugar do SDR
@@ -298,24 +324,37 @@ pertence.
 O `grs-iq-recorder` é nosso, então o Dockerfile dele mora no próprio
 repositório, como nos outros blocos da estação.
 
-## Profile `rx`
+## Profiles
 
-Os quatro serviços estão atrás de `profiles: ["rx"]` e **não sobem** num
-`docker compose up` comum:
+O caminho de recepção **não sobe** num `docker compose up` comum. Um profile
+por fonte de IQ; todas bindam a :5556 e respondem pelo nome `grs-iq-rx`,
+então nunca sobem juntas e o resto do cano não sabe qual está ali:
+
+| Profile | Fonte de IQ | Quando |
+|---|---|---|
+| `rx` | `grs-iq-rx-usrp` — USRP N210, python3-uhd, painel em `localhost:8091` | o rádio da estação |
+| `rtlsdr` | `grs-iq-rx` — o receptor em C do plano original | quem tiver um dongle |
+| `rxsim` | `grs-sdr-sim` — painel em `localhost:8090` | sem hardware |
+| `replay` | `grs-iq-replay` — uma captura, sob demanda | regressão offline |
 
 ```powershell
 docker compose --profile rx up -d --build
+# replay, com a fonte ao vivo desligada:
+docker compose stop grs-iq-rx-usrp
+docker compose run --rm --use-aliases grs-iq-replay replay /app/captures/<nome> --count-packets
 ```
 
-O motivo: o `grs-iq-rx` abre um RTL-SDR de verdade e, sem dongle, sai com
-`EXIT_FAILURE`. Numa máquina de desenvolvimento isso deixaria a estação inteira
-vermelha por causa de hardware que ninguém tem ali. É o mesmo problema que o
-rotor resolve com `--rotor mock`.
+O receptor USRP fica **de pé sem o rádio** e mostra no painel por que não
+conectou. O receptor em C, sem dongle, sai com `EXIT_FAILURE` — e em Docker
+Desktop no Windows não há passagem de USB para a VM.
 
-**Consequência para o DoD da fatia:** o critério "`docker compose up` sobe os
-quatro" só vale com `--profile rx`, e o `grs-iq-rx` só fica de pé onde houver
-SDR. Em Docker Desktop no Windows **não há passagem de USB para a VM** — ali o
-caminho é rodar o `grs-iq-rx` no host, ou usar replay (Épico C).
+**Por que o replay é um serviço à parte, e não o gravador publicando:** o
+demodulador assina um nome só. Assinar dois (fonte + gravador) foi medido: com
+um nome que não resolve na lista, o ZMQ não recebeu nada nem do outro — 0
+lotes em 5 s, contra 146 sem ele. E o publicador do replay espera a inscrição
+do demodulador (XPUB) em vez de uma pausa fixa: com a pausa, dois replays do
+mesmo arquivo deram 13 e 9 pacotes; com a espera, a gravação ao vivo e três
+replays deram 16, 16, 16 e 16.
 
 ## Colisão de porta a observar
 

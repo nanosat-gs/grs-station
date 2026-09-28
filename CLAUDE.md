@@ -24,7 +24,7 @@ cada base.
 
 | Bloco | Repositório | O que faz |
 |---|---|---|
-| **IQ Receiver** | `nanosat-gs/grs-iq-rx` @ `station` | C/RTL-SDR: sintoniza e publica IQ (`cf32_le`) na 5556, em lote |
+| **IQ Receiver** | `nanosat-gs/grs-iq-rx` @ `station` | Bloco SDR. Pasta `usrp/`: o USRP N210 da estação (python3-uhd, reamostra 250k→240k, painel na 8091). Raiz: o receptor C/RTL-SDR. Os dois publicam IQ `cf32_le` na 5556, em lote |
 | **Demodulator** | `nanosat-gs/grs-demodulator` @ `station` | IQ -> bits na 5555, um byte por bit |
 | **Syncword Detector** | `nanosat-gs/grs-syncword-detector` @ `station` | Biblioteca C + serviço: raw packets na 5558 |
 | **IQ Recorder** | `nanosat-gs/grs-iq-recorder` | **Nosso.** Captura, replay e índice do fluxo de IQ |
@@ -70,6 +70,8 @@ para `test-all.ps1`). `.\bootstrap.ps1 -Check` confere antes de subir.
 | **IQ Receiver — ZMQ PUB (IQ)** | **5556** |
 | **Demodulator — ZMQ PUB (bits)** | **5555** |
 | **Syncword Detector — ZMQ PUB (raw packets)** | **5558** |
+| Painel do receptor USRP (profile `rx`, só 127.0.0.1) | 8091 |
+| Painel do SDR Sim (profile `rxsim`, só 127.0.0.1) | 8090 |
 
 Links, credenciais de desenvolvimento e endpoints em `docs/acessos.md`. A
 confusão mais comum é abrir a 4533 (rotctld, protocolo hamlib) esperando o
@@ -171,16 +173,23 @@ porque sem isso um comando ficava em `queued` para sempre. Só passagem
 - **Satélite sem telecomando à espera não entra no plano.** O Scheduler usa
   `JOIN telecommands`, não `LEFT JOIN`. Ele continua aparecendo no painel com
   posição, porque a posição vem de outra consulta.
-- **`rx` e `rxsim` não sobem juntos.** O `grs-sdr-sim` e o `grs-iq-rx` BINDAM
-  a mesma :5556; os dois ao mesmo tempo disputam a porta e quem perde cai em
-  silêncio. `--profile rxsim` para testar sem hardware, `--profile rx` com
-  dongle. Tudo o mais é idêntico — o demodulador e o detector não sabem qual
-  dos dois está do outro lado, que é o ponto.
-- **O profile `rx` não sobe num `docker compose up` comum.** É de propósito:
-  o `grs-iq-rx` abre um RTL-SDR de verdade e, sem dongle, sai com
-  `EXIT_FAILURE`. Use `docker compose --profile rx up -d --build`. Em Docker
-  Desktop no Windows **não há passagem de USB para a VM** — ali o `grs-iq-rx`
-  roda no host, ou não roda.
+- **Uma fonte de IQ por vez: `rx` (USRP N210), `rtlsdr` (dongle, receptor
+  em C), `rxsim` (simulador), `replay` (captura).** Todas BINDAM a :5556 e
+  respondem pelo nome `grs-iq-rx`; duas ao mesmo tempo disputam a porta e
+  quem perde cai em silêncio. O demodulador, o detector e o gravador não
+  sabem qual está do outro lado, que é o ponto. Ver "Profiles" em
+  `docs/rx-datapath.md`.
+- **O demodulador assina UM nome, e isso é deliberado.** Assinar dois
+  (fonte + gravador) foi medido: com um nome que não resolve na lista, o ZMQ
+  não recebe nada nem do outro. Por isso o replay é o serviço
+  `grs-iq-replay`, rodado com `docker compose run --rm --use-aliases`.
+- **A taxa do cano é 240 kS/s para toda fonte, e o demodulador não tolera
+  diferença.** 0,08% já derruba ~65% dos pacotes. O N210 não gera 240 kS/s
+  (só 100 MHz / N): o receptor USRP pede 250 kS/s e reamostra 24/25. Não
+  "simplifique" pedindo 240k direto ao N210.
+- **O receptor USRP fica de pé sem o rádio**, com o motivo no painel
+  (`localhost:8091`). O receptor em C, sem dongle, sai com `EXIT_FAILURE` — e
+  em Docker Desktop no Windows não há passagem de USB para a VM.
 - **Meça o demodulador com a fase de símbolo variando.** Um em cada quatro
   pacotes saía corrompido porque o M&M recomeçava a cada janela e tinha o
   ganho 50x fraco (corrigido no `grs-demodulator` 8b6282e). O defeito passava
@@ -247,17 +256,25 @@ o código; o `grs-iq-recorder` nasceu com esqueleto hexagonal, `CaptureProfile`
 ponta a ponta** — IQ loteado, bits publicados, e um serviço em volta do
 detector que emite raw packets na 5558. Provado sem rádio, com IQ sintético.
 
-Depois: o `grs-iq-recorder` grava, reproduz, importa WAV do gqrx e tem
-adapters para `rtl_tcp` e para o USRP N210 (UHD, ainda sem hardware para
-validar); o `grs-sdr-sim` tem painel web (http://localhost:8090) com modo
-de um pacote por pedido; o demodulador entrega 60 de 60 pacotes íntegros na
-bancada, até SNR 3 dB.
+Depois: o `grs-iq-recorder` grava, reproduz, importa WAV do gqrx, conta os
+pacotes do detector (`--count-packets`) e tem adapter para `rtl_tcp`; o
+replay passa pelo cano de verdade (`grs-iq-replay`: gravação e três replays
+deram 16, 16, 16, 16 pacotes); o bloco SDR tem receptor para o USRP N210
+(python3-uhd, reamostragem 250k→240k, painel de configuração em
+http://localhost:8091), ainda sem o rádio para validar; o `grs-sdr-sim` tem
+painel (http://localhost:8090) com modo de um pacote por pedido; o
+demodulador entrega 60 de 60 pacotes íntegros na bancada, até SNR 3 dB.
 
-Em aberto na fatia: **nada consome a :5558.** O detector publica o raw
-packet — os 255 bytes depois do syncword, sem saber onde o quadro termina —
-e a cadeia para aí. Falta o decodificador NGHam: ler a size tag, aplicar o
-Reed-Solomon, tirar o payload, e dar ao pacote um destino (banco, painel).
-E o baud real do FS-2.
+Em aberto na fatia, e nenhum depende de código: validar com o N210 físico
+(IP, imagem de FPGA compatível com o UHD 4.3, UDP atrás do NAT do Docker);
+o baud real do FS-2 (coordenação IARU); e a confirmação do licenciamento GPL
+antes de distribuir.
+
+Próxima fatia: **nada consome a :5558**, por desenho — o documento da fatia
+põe a decodificação fora dela. O detector publica os 255 bytes depois do
+syncword, sem saber onde o quadro termina; falta o decodificador NGHam (size
+tag, Reed-Solomon, payload, destino). O `grs-sdr-sim` ainda não gera quadros
+NGHam de verdade (manda 00 01 02 ... sem size tag nem RS).
 
 Em aberto: encoders/moduladores (transmissão real) — enquanto não existirem, o
 `sent` do fim da janela é inferência, não confirmação; parametrizar o

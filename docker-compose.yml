@@ -183,28 +183,68 @@ services:
 
   # --- Caminho de dados RX (FS-2) ---------------------------------------
   #
-  # Os quatro serviços abaixo estão atrás do profile `rx` e NÃO sobem num
-  # `docker compose up` comum. Para levantá-los:
+  # O caminho de recepção fica atrás de profiles e NÃO sobe num
+  # `docker compose up` comum. Um profile por FONTE de IQ — as fontes bindam
+  # a mesma :5556 e respondem pelo mesmo nome (grs-iq-rx), então nunca sobem
+  # juntas, e demodulador, detector e gravador não sabem qual está ali:
   #
-  #   docker compose --profile rx up -d --build
+  #   docker compose --profile rx     up -d --build   USRP N210 (o rádio da estação)
+  #   docker compose --profile rtlsdr up -d --build   dongle RTL-SDR (grs-iq-rx em C)
+  #   docker compose --profile rxsim  up -d --build   simulador, sem hardware
   #
-  # O profile não é timidez: o `grs-iq-rx` abre um RTL-SDR de verdade, e sem
-  # dongle ele sai com EXIT_FAILURE. Numa máquina de desenvolvimento sem
-  # hardware, isso deixaria a estação inteira vermelha por causa de um
-  # dispositivo que ninguém tem ali. O rotor já resolve o mesmo problema pelo
-  # `--rotor mock`; aqui a chave é o profile.
+  # e, com a fonte ao vivo DESLIGADA, o replay de uma captura:
   #
-  # Três dos quatro são repositórios de TERCEIROS (spacelab-ufsc, GPL v3), e
-  # por isso o `dockerfile:` deles aponta para docker/ aqui no orquestrador —
-  # não temos push naqueles repositórios para pôr um Dockerfile lá dentro.
-  # Ver docs/rx-datapath.md, e repos.txt para as refs pinadas.
+  #   docker compose run --rm --use-aliases grs-iq-replay replay /app/captures/<nome> --count-packets
+  #
+  # Os blocos de RF adotados são forks GPL v3 (spacelab-ufsc -> nanosat-gs);
+  # o `dockerfile:` deles aponta para docker/ aqui no orquestrador, para o
+  # diff contra o upstream ficar pequeno. Ver docs/rx-datapath.md.
 
+  # O RÁDIO DA ESTAÇÃO: USRP N210, Gigabit Ethernet, via python3-uhd.
+  #
+  # Painel de configuração em http://localhost:8091 — IP do rádio, teste de
+  # conexão, frequência, ganho, antena, referência de relógio. A configuração
+  # fica no volume usrp_config e sobrevive a restart. Sem o rádio o serviço
+  # fica DE PÉ, mostrando por que não conectou (o grs-iq-rx em C sai com
+  # EXIT_FAILURE, e aí não haveria onde corrigir o IP).
+  #
+  # Pede 250 kS/s ao N210 (exato: 100 MHz / 400) e reamostra 24/25 para
+  # publicar os 240 kS/s do cano. Ver docker/grs-iq-rx-usrp.Dockerfile.
+  #
+  # REDE, a validar com o rádio: o UHD fala UDP com o N210. Atrás do NAT da
+  # rede bridge o teste por IP funciona, a descoberta por broadcast não. Se o
+  # stream não passar, num host Linux o caminho é `network_mode: host` — mas
+  # aí o alias grs-iq-rx deixa de existir e o demodulador tem de apontar para
+  # o IP do host (RX_IQ_SOURCE).
+  grs-iq-rx-usrp:
+    build:
+      context: ./repos/grs-iq-rx
+      dockerfile: ../../docker/grs-iq-rx-usrp.Dockerfile
+    container_name: spacelab-grs-iq-rx-usrp
+    profiles: ["rx"]
+    environment:
+      GRS_IQ_RX_CONFIG: /app/config/sdr.json
+      GRS_IQ_RX_PANEL_PORT: "8091"
+    ports:
+      - "5556:5556"   # ZMQ PUB — IQ em cf32_le, sem frame de tópico
+      # Só em 127.0.0.1: o painel não tem autenticação e reconfigura o rádio.
+      - "127.0.0.1:8091:8091"
+    volumes:
+      - usrp_config:/app/config
+    restart: unless-stopped
+    networks:
+      spacelab-network:
+        aliases:
+          - grs-iq-rx
+
+  # DONGLE RTL-SDR: o grs-iq-rx em C, do plano original da fatia. Não é o
+  # rádio da estação (o N210 é); fica para quem tiver um dongle.
   grs-iq-rx:
     build:
       context: ./repos/grs-iq-rx
       dockerfile: ../../docker/grs-iq-rx.Dockerfile
     container_name: spacelab-grs-iq-rx
-    profiles: ["rx"]
+    profiles: ["rtlsdr"]
     command:
       - grs_iq_rx
       # -v não é opcional: o main.c só escreve em stderr quando verbose está
@@ -212,7 +252,7 @@ services:
       # são o mesmo silêncio.
       - -v
       # ATENÇÃO: a frequência é PROVISÓRIA — 145.9 MHz é a beacon do FS-1. A
-      # modulação do FS-2 está confirmada (2GFSK, syncword BA 67 54 7E); a
+      # modulação do FS-2 está confirmada (2GFSK, syncword 5D E6 2A 7E); a
       # FREQUÊNCIA e o BAUD dependem da coordenação IARU. Mesma situação das
       # coordenadas GS_*: um exemplo para o cano subir. Trocar antes de
       # qualquer campanha de gravação real.
@@ -244,8 +284,9 @@ services:
       context: ./repos/grs-demodulator
       dockerfile: ../../docker/grs-demodulator.Dockerfile
     container_name: spacelab-grs-demodulator
-    # Nos dois profiles: o demodulador é o mesmo, com rádio ou com simulador.
-    profiles: ["rx", "rxsim"]
+    # Em todos os profiles de recepção: o demodulador é o mesmo, qualquer que
+    # seja a fonte de IQ.
+    profiles: ["rx", "rtlsdr", "rxsim"]
     ports:
       - "5555:5555"   # ZMQ PUB — bits. Ver a colisão de porta em docs/rx-datapath.md
     environment:
@@ -255,8 +296,9 @@ services:
       # configuração.
       GRS_DEMOD_IQ_SOURCE: ${RX_IQ_SOURCE:-tcp://grs-iq-rx:5556}
       GRS_DEMOD_BITS_BIND: tcp://*:5555
-      # Tem de bater com o --sample-rate do grs-iq-rx, ou o sincronismo de
-      # tempo trabalha com o número errado de amostras por símbolo.
+      # A taxa do CANO, igual para todas as fontes (o USRP reamostra para
+      # ela). Tem de bater exatamente: medido na tools/bancada_demod.py, 0,08%
+      # de diferença já derruba ~65% dos pacotes.
       GRS_DEMOD_SAMPLE_RATE_HZ: ${RX_SAMPLE_RATE_HZ:-240000}
       # BAUD A CONFIRMAR: 4800 é herança do código, não confirmação do
       # enlace do FS-2. Ver docs/rx-datapath.md.
@@ -273,7 +315,7 @@ services:
       context: ./repos/grs-syncword-detector
       dockerfile: ../../docker/grs-syncword-detector.Dockerfile
     container_name: spacelab-grs-syncword-detector
-    profiles: ["rx", "rxsim"]
+    profiles: ["rx", "rtlsdr", "rxsim"]
     ports:
       - "5558:5558"   # ZMQ PUB — raw packets. É daqui que a fatia de decode se serve
     environment:
@@ -358,15 +400,17 @@ services:
   grs-iq-recorder:
     build: ./repos/grs-iq-recorder
     container_name: spacelab-grs-iq-recorder
-    profiles: ["rx", "rxsim"]
+    profiles: ["rx", "rtlsdr", "rxsim"]
     environment:
       RECORDER_PROFILE: ${RECORDER_PROFILE:-grs-rx-fs2}
-      # Conecta no PUB que o grs-iq-rx binda. No replay isto se inverte: o
-      # gravador é quem binda a :5556, e o grs-iq-rx tem de estar DESLIGADO.
+      # Conecta na fonte de IQ ao vivo, seja ela qual for (todas respondem
+      # por grs-iq-rx). O replay NÃO roda aqui: ver grs-iq-replay.
       RECORDER_IQ_SOURCE_ADDRESS: tcp://grs-iq-rx:5556
       RECORDER_IQ_PUBLISH_ADDRESS: tcp://*:5556
       RECORDER_CAPTURE_DIR: /app/captures
       RECORDER_MAX_CAPTURE_SECONDS: ${RECORDER_MAX_CAPTURE_SECONDS:-60}
+      # --count-packets assina aqui a saída do detector.
+      RECORDER_PACKETS_ADDRESS: tcp://grs-syncword-detector:5558
       # Sem esta variável o gravador grava do mesmo jeito, só não indexa: a
       # captura é o artefato, o índice é conveniência.
       PG_DATABASE_URL: postgresql+psycopg2://${DB_USER:-admin}:${DB_PASSWORD:-admin}@postgres:5432/${DB_NAME:-tc_generator}
@@ -381,12 +425,43 @@ services:
     networks:
       - spacelab-network
 
+  # REPLAY: republica uma captura como se fosse a fonte ao vivo.
+  #
+  # Serviço próprio, e não um comando no grs-iq-recorder, por um motivo
+  # medido: o demodulador assina UM nome, grs-iq-rx, e o replay precisa
+  # responder por ele. Assinar dois nomes (o da fonte e o do gravador) foi
+  # testado e descartado: com um nome que não resolve na lista, o ZMQ não
+  # recebeu NADA nem do outro — 0 lotes em 5 s contra 146 sem ele.
+  #
+  # Só roda sob demanda, com a fonte ao vivo DESLIGADA (mesma :5556, mesmo
+  # nome), e --use-aliases é obrigatório — sem ele o `run` não aplica o alias:
+  #
+  #   docker compose stop grs-sdr-sim          (ou grs-iq-rx-usrp / grs-iq-rx)
+  #   docker compose run --rm --use-aliases grs-iq-replay replay /app/captures/<nome> --count-packets
+  grs-iq-replay:
+    build: ./repos/grs-iq-recorder
+    profiles: ["replay"]
+    entrypoint: ["python", "-m", "iq_recorder.main"]
+    environment:
+      RECORDER_PROFILE: ${RECORDER_PROFILE:-grs-rx-fs2}
+      RECORDER_IQ_PUBLISH_ADDRESS: tcp://*:5556
+      RECORDER_CAPTURE_DIR: /app/captures
+      RECORDER_PACKETS_ADDRESS: tcp://grs-syncword-detector:5558
+    volumes:
+      - iq_captures:/app/captures
+    networks:
+      spacelab-network:
+        aliases:
+          - grs-iq-rx
+
 volumes:
   postgres_data:
   tracking_data:
   # Capturas de IQ. Volume nomeado porque elas têm de sobreviver ao container
   # e não podem cair dentro da árvore de trabalho.
   iq_captures:
+  # Configuração do receptor USRP (IP do rádio etc.), editada pelo painel.
+  usrp_config:
 
 networks:
   spacelab-network:
