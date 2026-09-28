@@ -181,14 +181,13 @@ porque sem isso um comando ficava em `queued` para sempre. Só passagem
   `EXIT_FAILURE`. Use `docker compose --profile rx up -d --build`. Em Docker
   Desktop no Windows **não há passagem de USB para a VM** — ali o `grs-iq-rx`
   roda no host, ou não roda.
-- **O demodulador erra bits mesmo sem ruído.** Com IQ sintético, sem ruído,
-  sem Doppler e sem desvio de relógio, 5 de 20 raw packets saem com byte
-  errado — sempre o mesmo erro, sempre no 4º pacote. O espaçamento entre
-  pacotes é de 803 bits onde o frame tem 800: o sincronismo de tempo deriva.
-  Reproduza com `tools/inject_iq.py` + `tools/collect_packets.py`. É o
-  próximo problema de DSP, e é o argumento mais forte para terminar o
-  `grs-iq-recorder`: sem captura e replay, cada tentativa de correção depende
-  de uma passagem ao vivo para ser avaliada.
+- **Meça o demodulador com a fase de símbolo variando.** Um em cada quatro
+  pacotes saía corrompido porque o M&M recomeçava a cada janela e tinha o
+  ganho 50x fraco (corrigido no `grs-demodulator` 8b6282e). O defeito passava
+  despercebido porque os símbolos do `grs-sdr-sim` começam alinhados na
+  amostra 0. `tools/bancada_demod.py` atrasa o sinal (`--offset`) e confere
+  os 64 bytes de cada pacote; use-a antes e depois de qualquer mudança no DSP.
+  O `collect_packets.py` confere só 16 bytes e não pegava o erro.
 - **Rebuild depois de mexer num bloco de RF.** `docker compose --profile rx
   build <serviço>`. O `docker-compose.dev.yml` NÃO monta os três adotados
   (dois são C, e montar o Python esconderia o ref pinado), então uma edição
@@ -215,7 +214,7 @@ porque sem isso um comando ficava em `queued` para sempre. Só passagem
   símbolo exatas a 4800 baud).
 - **A frequência RX do `.env` é um EXEMPLO**, como as coordenadas `GS_*`.
   145.9 MHz é a beacon do **FS-1**. A modulação do FS-2 está confirmada
-  (2GFSK, syncword `BA 67 54 7E`); a frequência e o baud dependem da
+  (2GFSK, syncword `5D E6 2A 7E`); a frequência e o baud dependem da
   coordenação IARU. Trocar antes de qualquer campanha de gravação real.
 - **A :5555 colide com o `grs-modulator`** (uplink, tópico `tx_data`). Subir
   RX e TX na mesma estação exige realocar uma das pontas.
@@ -248,9 +247,17 @@ o código; o `grs-iq-recorder` nasceu com esqueleto hexagonal, `CaptureProfile`
 ponta a ponta** — IQ loteado, bits publicados, e um serviço em volta do
 detector que emite raw packets na 5558. Provado sem rádio, com IQ sintético.
 
-Em aberto na fatia: a deriva do sincronismo de tempo (ver armadilhas), a
-gravação e o replay (Épico C, `grs-iq-recorder` ainda é só esqueleto), e o
-baud real do FS-2.
+Depois: o `grs-iq-recorder` grava, reproduz, importa WAV do gqrx e tem
+adapters para `rtl_tcp` e para o USRP N210 (UHD, ainda sem hardware para
+validar); o `grs-sdr-sim` tem painel web (http://localhost:8090) com modo
+de um pacote por pedido; o demodulador entrega 60 de 60 pacotes íntegros na
+bancada, até SNR 3 dB.
+
+Em aberto na fatia: **nada consome a :5558.** O detector publica o raw
+packet — os 255 bytes depois do syncword, sem saber onde o quadro termina —
+e a cadeia para aí. Falta o decodificador NGHam: ler a size tag, aplicar o
+Reed-Solomon, tirar o payload, e dar ao pacote um destino (banco, painel).
+E o baud real do FS-2.
 
 Em aberto: encoders/moduladores (transmissão real) — enquanto não existirem, o
 `sent` do fim da janela é inferência, não confirmação; parametrizar o
