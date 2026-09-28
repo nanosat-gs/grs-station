@@ -12,7 +12,7 @@ def main():
     ap.add_argument("--connect", default="tcp://localhost:5555")
     ap.add_argument("--messages", type=int, default=3)
     ap.add_argument("--timeout", type=float, default=60.0)
-    ap.add_argument("--syncword", default="BA67547E")
+    ap.add_argument("--syncword", default="5DE62A7E")
     a = ap.parse_args()
 
     ctx = zmq.Context(); s = ctx.socket(zmq.SUB)

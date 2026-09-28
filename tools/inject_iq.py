@@ -38,8 +38,9 @@ import zmq
 
 from grs_demodulator.gmsk import GMSK
 
-# Syncword do NGHam usado pelo enlace do FloripaSat.
-SYNCWORD = [0xBA, 0x67, 0x54, 0x7E]
+# NGH_SYNC do ngham.c. Não BA 67 54 7E, a versão invertida que o documento
+# da fatia carregava e que não acha nada num sinal real do FloripaSat-1.
+SYNCWORD = [0x5D, 0xE6, 0x2A, 0x7E]
 
 # Preâmbulo de 0x55 = 01010101: transição a cada bit, que é o que o
 # sincronismo de tempo precisa para travar antes de o syncword chegar. Sem

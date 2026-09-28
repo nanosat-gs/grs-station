@@ -10,7 +10,7 @@ import argparse, sys, time, zmq
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--bind", default="tcp://*:5555")
-    ap.add_argument("--syncword", default="BA67547E")
+    ap.add_argument("--syncword", default="5DE62A7E")
     ap.add_argument("--payload-bytes", type=int, default=64)
     ap.add_argument("--repeat", type=int, default=5)
     ap.add_argument("--settle", type=float, default=2.0)

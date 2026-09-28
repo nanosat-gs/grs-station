@@ -161,7 +161,7 @@ Três frames: `[tópico "raw_packet"][cabeçalho JSON][payload empacotado]`.
 
 ```json
 {"seq":0,"bit_offset":290,"bits":512,"bytes":64,
- "max_sync_errors":1,"syncword":"BA67547E",
+ "max_sync_errors":1,"syncword":"5DE62A7E",
  "bit_order":"msb_first","detected_at":"2026-09-22T12:00:00Z"}
 ```
 
@@ -209,11 +209,46 @@ do modulador (o `inject_iq` gera 40101 amostras onde 800 símbolos × 50 dariam
 sintético, sem ruído, sem Doppler e sem desvio de relógio, o Mueller & Muller
 deveria entregar exatamente 800.
 
-Um quarto dos pacotes corrompidos no caso mais fácil possível é o número que
-importa levar para a próxima etapa. Consertar isso é mexer no miolo de DSP, o
-que esta fatia deliberadamente não faz — e é precisamente o argumento para o
-`grs-iq-recorder`: sem captura e replay, cada tentativa de correção depende de
-uma passagem ao vivo para ser avaliada.
+Um quarto dos pacotes corrompidos no caso mais fácil possível era o número a
+levar para a próxima etapa.
+
+### Resolvido — dois defeitos no demodulador
+
+Medido com `tools/bancada_demod.py` (sinal do `grs-sdr-sim` passando pelo
+`GRSDemodulator` real, com as mesmas janelas do serviço ao vivo, conferindo
+os 64 bytes de cada pacote):
+
+1. **Cada etapa recomeçava do zero a cada janela.** O sincronismo M&M jogava
+   fora onde o último passo de símbolo caía além do fim da janela, e a janela
+   seguinte recomeçava até um símbolo inteiro fora de fase — a "deriva do
+   sincronismo" acima era isto. O filtro casado (`convolve "same"`), o discriminador e a
+   remoção de DC (média da janela) também não guardavam estado.
+2. **O ganho do M&M estava em unidade errada.** Escrito por símbolo, aplicado
+   a `mu` contado em amostras: 50x fraco demais a 50 amostras por símbolo. O
+   laço não rastreava nada. Funcionava no simulador só porque os símbolos dele
+   começam alinhados na amostra 0 — por isso a bancada agora atrasa o sinal
+   de propósito (`--offset`), senão o defeito passaria de novo por sorte.
+
+Pacotes íntegros em 40 s de sinal (~60 rajadas):
+
+| Cenário | Antes | Depois |
+|---|---|---|
+| sem ruído | 44 de 59 | 60 de 60 |
+| SNR 10 dB | 41 de 59 | 60 de 60 |
+| SNR 5 dB (antes) / 3 dB (depois) | 37 de 59 | 60 de 60 |
+
+O "antes" foi medido com os símbolos alinhados na amostra 0 — o caso de SORTE
+do código antigo. O "depois" vale para as fases 0, 13, 25 e 37 amostras.
+
+A remoção de DC virou uma média exponencial contínua que só aprende com
+amostras de sinal (o ruído dos silêncios não a puxa para zero). Com o
+sincronismo já corrigido, contra a média da janela: igual até 300 Hz de
+desvio residual (60 de 60), melhor a 500 Hz (52 contra 37).
+
+A única falha que sobra sem ruído é a rajada que começa no instante exato em
+que o demodulador liga, antes de o sincronismo convergir. Acima de ~1 kHz de
+desvio nenhuma remoção de DC resolve: o Doppler tem de ser corrigido pela
+sintonia (Station Manager → sintetizador → `tune`), como a estação já prevê.
 
 ## A armadilha de taxa de amostragem
 
@@ -252,6 +287,7 @@ tools/inject_iq.py          publica IQ sintético no lugar do SDR
 tools/inject_bits.py        publica bits, para isolar o detector
 tools/tap_bits.py           lê a saída de bits do demodulador
 tools/collect_packets.py    assina os raw packets
+tools/bancada_demod.py      mede pacotes íntegros do demodulador, offline e determinístico
 ```
 
 O build context é `repos/<bloco>`; só o Dockerfile é externo. Com os forks, o

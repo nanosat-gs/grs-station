@@ -28,7 +28,7 @@ import zmq
 
 from grs_demodulator.gmsk import GMSK
 
-SYNCWORD_HEX = "BA67547E"
+SYNCWORD_HEX = "5DE62A7E"
 PREAMBLE_BYTES = 32
 PAYLOAD = list(range(0, 64))
 

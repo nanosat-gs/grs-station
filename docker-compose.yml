@@ -279,8 +279,10 @@ services:
     environment:
       GRS_SYNCWORD_BITS_SOURCE: tcp://grs-demodulator:5555
       GRS_SYNCWORD_PACKETS_BIND: tcp://*:5558
-      # BA 67 54 7E é o syncword do NGHam usado pelo enlace do FloripaSat.
-      GRS_SYNCWORD_BYTES: ${RX_SYNCWORD:-BA67547E}
+      # 5D E6 2A 7E é o NGH_SYNC do ngham.c. NÃO BA67547E (a versão com bits
+      # invertidos que o documento da fatia carregava): contra uma gravação
+      # real do FloripaSat-1, BA67547E achou zero pacotes e 5DE62A7E achou 19.
+      GRS_SYNCWORD_BYTES: ${RX_SYNCWORD:-5DE62A7E}
       # Quantos bytes publicar depois do syncword. Este estágio NÃO sabe onde
       # o frame termina — o comprimento vive dentro do NGHam, e parsear NGHam
       # é trabalho do decodificador. Então publica-se uma fatia generosa e o
@@ -321,6 +323,9 @@ services:
       - --sample-rate=${RX_SAMPLE_RATE_HZ:-240000}
       - --baud=${RX_BAUD:-4800}
       - --emitters=${SIM_EMITTERS:-fs2}
+      # continuous: rajadas sem parar. manual: o FS-2 fica calado até o
+      # painel pedir "enviar 1 pacote". Dá para trocar no painel sem reiniciar.
+      - --fs2-mode=${SIM_FS2_MODE:-continuous}
       - --snr-db=${SIM_SNR_DB:-20}
       # 0 desliga o Doppler. Com um valor, o sinal varre a banda ao longo de
       # --pass-duration, como numa passagem de verdade.
@@ -329,14 +334,26 @@ services:
       # Semente fixa: sem ela, um teste que falha uma vez em dez não é
       # investigável.
       - --seed=${SIM_SEED:-1}
+      # Painel de controle: http://localhost:8090 — espectro ao vivo,
+      # sintonia, SNR, emissores, Doppler, e a conferência dos pacotes que
+      # chegam ao detector contra o que o simulador transmitiu.
+      - --panel-port=8090
+      - --packets-source=tcp://grs-syncword-detector:5558
       # Descomente para o simulador OBEDECER ao sintetizador — é assim que a
       # malha de sintonia fecha sem hardware.
       # - --tune-source=tcp://grs-frequency-synthesizer:5557
     ports:
       - "5556:5556"
+      # Só em 127.0.0.1: o painel não tem autenticação e muda o simulador.
+      - "127.0.0.1:8090:8090"
     restart: "no"
     networks:
-      - spacelab-network
+      spacelab-network:
+        # Responde pelo nome do rádio real. Os dois nunca sobem juntos (mesma
+        # :5556), então quem estiver de pé é "o grs-iq-rx" — e demodulador e
+        # gravador funcionam nos dois profiles sem nenhuma variável no .env.
+        aliases:
+          - grs-iq-rx
 
   grs-iq-recorder:
     build: ./repos/grs-iq-recorder
