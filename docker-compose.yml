@@ -425,6 +425,37 @@ services:
     networks:
       - spacelab-network
 
+  # ARQUIVO DE RAW PACKETS: grava no banco cada pacote que o detector publica.
+  #
+  # Sem ele, o que sai da :5558 some — PUB não guarda nada, e um pacote
+  # publicado sem assinante está perdido. Mesma imagem do gravador, outro
+  # comando. Tabela mission_control.raw_packets, append-only, com o horário
+  # de recepção em solo (µs), o cabeçalho do detector e o payload cru.
+  #
+  # Se o banco cair, os pacotes ficam num buffer e são regravados quando ele
+  # volta; o que passar do teto do buffer é contado e avisado no log.
+  #
+  # Replays também passam pelo detector e também são arquivados: são
+  # recepções legítimas do cano, e ficam distinguíveis pelo horário.
+  #
+  # Conferir o que foi gravado:
+  #   docker compose exec grs-packet-archiver python -m iq_recorder.main packets
+  grs-packet-archiver:
+    build: ./repos/grs-iq-recorder
+    container_name: spacelab-grs-packet-archiver
+    profiles: ["rx", "rtlsdr", "rxsim"]
+    command: ["python", "-m", "iq_recorder.main", "archive-packets"]
+    environment:
+      RECORDER_PROFILE: ${RECORDER_PROFILE:-grs-rx-fs2}
+      RECORDER_PACKETS_ADDRESS: tcp://grs-syncword-detector:5558
+      PG_DATABASE_URL: postgresql+psycopg2://${DB_USER:-admin}:${DB_PASSWORD:-admin}@postgres:5432/${DB_NAME:-tc_generator}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - spacelab-network
+
   # REPLAY: republica uma captura como se fosse a fonte ao vivo.
   #
   # Serviço próprio, e não um comando no grs-iq-recorder, por um motivo

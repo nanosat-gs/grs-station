@@ -21,6 +21,8 @@ USRP N210 ─▶ grs-iq-rx/usrp ─┐
 RTL-SDR ──▶ grs-iq-rx (C) ───┼─ PUB :5556 (cf32_le, 240 kS/s) ─┬─▶ grs-demodulator ── PUB :5555 (bits) ─▶ grs-syncword-detector ─▶ PUB :5558 raw packets
 simulador ▶ grs-sdr-sim ─────┤  todos respondem por grs-iq-rx  │
 captura ──▶ grs-iq-replay ───┘                                 └──(tap)─▶ grs-iq-recorder ─▶ captura SigMF + índice
+
+:5558 ─▶ grs-packet-archiver ─▶ Postgres mission_control.raw_packets (todo raw packet, append-only)
 ```
 
 Uma fonte de IQ por vez, cada uma no seu profile — ver "Profiles" no fim.
@@ -185,6 +187,21 @@ produziu.
 Empacotado aqui e um-byte-por-bit na entrada porque o enquadramento em bytes
 **começa** no syncword: antes dele não há fronteira de byte — que é a razão
 de a busca ser bit a bit — e depois dele há.
+
+### Os raw packets vão para o banco
+
+PUB não guarda nada: um pacote publicado sem assinante está perdido. O
+`grs-packet-archiver` (mesma imagem do `grs-iq-recorder`, comando
+`archive-packets`) assina a :5558 e grava cada raw packet em
+`mission_control.raw_packets`, append-only: horário de recepção em solo (µs),
+`detected_at`, `detector_seq`, `bit_offset`, o payload cru, o SHA-256 dele, o
+cabeçalho JSON inteiro e a sessão do arquivador. É o cru que a decodificação
+NGHam vai ler — e poderá reler quando mudar.
+
+Banco fora não perde pacote: o lote fica num buffer e é regravado quando o
+banco volta. Medido com o Postgres parado 15 s e o simulador transmitindo:
+voltou a gravar 3 s depois de o banco subir, sequência do detector sem
+buracos.
 
 ## O cano provado sem rádio
 

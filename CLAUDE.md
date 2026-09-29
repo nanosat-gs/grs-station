@@ -270,11 +270,16 @@ Em aberto na fatia, e nenhum depende de código: validar com o N210 físico
 o baud real do FS-2 (coordenação IARU); e a confirmação do licenciamento GPL
 antes de distribuir.
 
-Próxima fatia: **nada consome a :5558**, por desenho — o documento da fatia
-põe a decodificação fora dela. O detector publica os 255 bytes depois do
-syncword, sem saber onde o quadro termina; falta o decodificador NGHam (size
-tag, Reed-Solomon, payload, destino). O `grs-sdr-sim` ainda não gera quadros
-NGHam de verdade (manda 00 01 02 ... sem size tag nem RS).
+Os raw packets da :5558 são gravados crus no Postgres
+(`mission_control.raw_packets`) pelo `grs-packet-archiver`, append-only, com
+o horário de recepção em solo — nenhum pacote de passagem real se perde
+enquanto o decodificador não existe, e ele poderá reprocessar o histórico.
+
+Próxima fatia: o decodificador NGHam (size tag, Reed-Solomon, payload,
+telemetria) — por desenho, o documento da fatia põe a decodificação fora
+dela. Ele pode ler da :5558 ao vivo ou de `mission_control.raw_packets`. O
+`grs-sdr-sim` ainda não gera quadros NGHam de verdade (manda 00 01 02 ... sem
+size tag nem RS).
 
 Em aberto: encoders/moduladores (transmissão real) — enquanto não existirem, o
 `sent` do fim da janela é inferência, não confirmação; parametrizar o
