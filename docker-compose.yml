@@ -129,7 +129,10 @@ services:
     container_name: spacelab-tc-scheduler
     command: ["python", "-m", "tc_scheduler.main"]
     ports:
-      - "5591:5591"   # API de leitura do plano — é daqui que o painel se serve
+      # API do plano — é daqui que o painel se serve. Só em localhost: ela
+      # também recebe as ações do operador (pular/forçar passagem, recepção) e
+      # não tem autenticação. O painel alcança pela rede interna do compose.
+      - "127.0.0.1:5591:5591"
     environment:
       <<: *ground-station
       PG_DATABASE_URL: postgresql+psycopg2://${DB_USER:-admin}:${DB_PASSWORD:-admin}@postgres:5432/${DB_NAME:-tc_generator}
@@ -172,6 +175,10 @@ services:
       # -90 quando quiser exercitar o apontamento sem esperar uma passagem real.
       - --pointing-min-elevation=${STATION_POINTING_MIN_ELEVATION:-0}
       - --pointing-interval=${STATION_POINTING_INTERVAL_SECONDS:-1}
+      # Anuncia a portadora ([freq]) e o Doppler ([doppler]) do satélite
+      # rastreado, quando o TC Scheduler cadastrou a frequência de downlink.
+      # Só rede interna: quem assina é o caminho de recepção.
+      - --tuning-bind=tcp://0.0.0.0:5581
     ports:
       - "5580:5580"   # ZMQ REP — comandos de rotor e ordens de rastreamento
     environment:

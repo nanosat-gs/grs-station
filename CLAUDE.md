@@ -105,14 +105,20 @@ Separados, um replanejamento nunca atrasa o rotor, e uma queda do Scheduler no
 meio de uma passagem não a interrompe. O Scheduler manda uma ordem por passagem
 (`track_satellite`), não um setpoint por segundo.
 
-**A autonomia mora no TC Scheduler.** Ele pontua as passagens por prioridade do
-telecomando à espera, depois quantidade de comandos, depois elevação máxima, e
-escolhe as que não se sobrepõem (a estação tem um rotor só).
+**A autonomia mora no TC Scheduler.** Toda passagem de satélite ativo com
+órbita conhecida é candidata, com ou sem telecomando — o satélite transmite
+telemetria sem esperar uplink. Ele pontua por passagem forçada pelo operador,
+depois prioridade do telecomando à espera, quantidade de comandos e elevação
+máxima, e escolhe as que não se sobrepõem (a estação tem um rotor só). O
+operador pula, força ou desfaz passagens e liga/desliga a recepção por
+satélite pela aba Previsão do painel; o painel repassa ao Scheduler, que
+guarda isso no schema `mission_control` e replaneja em segundos.
 
 **O TC Scheduler é o único que escreve no banco — e agora é quem o serve.**
 Antes o painel do GRS Manager abria a própria conexão para ler o plano: dois
 serviços de repositórios diferentes com raw SQL contra o mesmo schema. Agora
-quem escreve é quem serve, pela API de leitura na 5591. O GRS Manager passou a
+quem escreve é quem serve, pela API na 5591 (publicada só em 127.0.0.1:
+ela também recebe as ações do operador e não tem autenticação). O GRS Manager passou a
 ser o único serviço da estação que **não conhece o Postgres** — o mesmo
 argumento que já valia para o Station Manager, e pela mesma razão.
 
@@ -170,9 +176,14 @@ porque sem isso um comando ficava em `queued` para sempre. Só passagem
   uma vez em `x-ground-station` e as repassa ao TC Scheduler e ao Station
   Manager. Não reescreva `GS_*` dentro do `environment:` de um serviço só: é
   assim que o plano e o apontamento passam a divergir sem erro nenhum.
-- **Satélite sem telecomando à espera não entra no plano.** O Scheduler usa
-  `JOIN telecommands`, não `LEFT JOIN`. Ele continua aparecendo no painel com
-  posição, porque a posição vem de outra consulta.
+- **Satélite sem passagem planejada: confira a aba Previsão.** Ela mostra o
+  motivo de cada passagem (perdeu o conflito, pulada, recepção desligada).
+  Com a recepção desligada, só entram passagens com telecomando ou forçadas.
+- **A frequência de downlink só é anunciada se cadastrada.** Sem ela o rotor
+  segue a passagem, mas o Station Manager não publica `[freq]`/`[doppler]` na
+  5581 (`--tuning-bind` no compose). O `[freq]` sai uma vez, no início da
+  passagem, e é repetido a cada tantos `[doppler]` — que só saem com o
+  satélite acima da elevação mínima.
 - **Uma fonte de IQ por vez: `rx` (USRP N210), `rtlsdr` (dongle, receptor
   em C), `rxsim` (simulador), `replay` (captura).** Todas BINDAM a :5556 e
   respondem pelo nome `grs-iq-rx`; duas ao mesmo tempo disputam a porta e
@@ -269,6 +280,13 @@ Em aberto na fatia, e nenhum depende de código: validar com o N210 físico
 (IP, imagem de FPGA compatível com o UHD 4.3, UDP atrás do NAT do Docker);
 o baud real do FS-2 (coordenação IARU); e a confirmação do licenciamento GPL
 antes de distribuir.
+
+Passagens de recepção: o TC Scheduler rastreia toda passagem, não só as com
+telecomando; o operador pula/força/desfaz passagens e cadastra a frequência
+de downlink pelo painel (aba Previsão), e a frequência chega ao Station
+Manager no `track_satellite` e sai como `[freq]` na 5581 — o elo 1 do
+Doppler. Próxima task desse lado: o operador escolher, no TC Generator, se um
+telecomando vai automaticamente para a próxima passagem ou é atribuído à mão.
 
 Os raw packets da :5558 são gravados crus no Postgres
 (`mission_control.raw_packets`) pelo `grs-packet-archiver`, append-only, com

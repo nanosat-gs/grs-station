@@ -6,6 +6,11 @@
 > Scheduler (`:5591`), e a variável é `TC_SCHEDULER_API_URL`, não
 > `PG_DATABASE_URL`. A interface única descrita aqui continua igual.
 
+> **Atualização (passagens de recepção):** o painel deixou de ser só leitura.
+> A aba **Previsão** e o bloco **Recepção** do detalhe do satélite mandam ações
+> do operador — sempre ao TC Scheduler, que continua o único a gravar. Ver
+> "O que o operador comanda" abaixo.
+
 > Leitura acessível. Cobre a mudança feita em `src/grs_manager/status/`.
 
 ## O que mudou
@@ -30,7 +35,7 @@ no Python (`_render_page`, `_PAGE_CSS`, `_PAGE_JS`) foi removido.
 | `station_data.py` — leitura do plano da estação (satélites, posição, passagens, TCs, histórico 24 h) no Postgres | **mantida** — é a camada de dados, e é boa |
 | Endpoints `/api/station`, `/api/satellite/<code>`, `/api/tle/refresh`, `/events` (SSE do rotor) | **mantidos** sem mudança |
 | A *view* (HTML/CSS/JS) | **trocada** por `templates/index.html` no visual do Station Manager |
-| Regra "o GRS Manager não escreve no banco" | **mantida** — criar/editar TC continua sendo link para o TC Generator |
+| Regra "o GRS Manager não escreve no banco" | **mantida** — criar/editar TC continua sendo link para o TC Generator; as ações sobre passagens vão ao TC Scheduler |
 
 ## O que o painel mostra
 
@@ -41,17 +46,42 @@ no Python (`_render_page`, `_PAGE_CSS`, `_PAGE_JS`) foi removido.
   como "não rastreável".
 - **Aba Passagens**: tabela achatada com a próxima passagem de cada satélite
   (AOS, LOS, elevação máxima, nº de TCs, situação).
+- **Aba Previsão**: todas as passagens das próximas 24 h, escolhidas ou não,
+  com o motivo — *planejada*, *perdeu para X*, *pulada*, *recepção
+  desligada* — e se ela leva telecomandos.
 - **Modal de detalhe** (clicando num satélite): vetor de estado ECI/TEME, ponto
   subsatélite (geodésica), coordenadas da estação, apontamento atual, e as abas
   **Agendamento** / **Histórico (24 h)** com os telecomandos de cada passagem
   separados entre "a enviar" e "enviados".
 
+## O que o operador comanda
+
+O TC Scheduler rastreia **toda passagem** de satélite ativo com órbita
+conhecida, com ou sem telecomando: é assim que a estação recebe a telemetria
+que o satélite transmite sozinho. O operador ajusta isso de dois jeitos:
+
+- **Por passagem, na aba Previsão:** **Pular** (a passagem sai do plano, e a
+  vizinha que perdia o conflito pode entrar), **Forçar** (vence qualquer
+  conflito, inclusive com telecomando) e **Desfazer** (volta ao automático).
+  A passagem é identificada por satélite + AOS previsto, porque as linhas de
+  passagem são recriadas a cada replanejamento.
+- **Por satélite, no detalhe:** a chave **"Rastrear passagens para recepção"**
+  (desligada, só entram passagens com telecomando ou forçadas) e a
+  **frequência de downlink** em MHz. Com ela cadastrada, o Station Manager
+  anuncia portadora e Doppler ao caminho de recepção durante a passagem.
+
+O Scheduler grava a decisão na hora e replaneja em poucos segundos; enquanto
+isso a linha mostra "replanejando…". Frequência fora de 1 a 6000 MHz
+(o engano típico é digitá-la em Hz) é recusada no próprio painel; outro
+pedido inválido volta com a mensagem do Scheduler; Scheduler fora do ar volta
+como erro, nunca em silêncio.
+
 ## Sem banco
 
-Se o `PG_DATABASE_URL` não estiver definido (ou o Postgres cair), o painel volta
-a ser só o controle do rotor — as abas de satélites mostram um aviso, e o
-cabeçalho continua funcionando. O rotor é a razão de existir da página; o resto
-é adição.
+Se o `TC_SCHEDULER_API_URL` não estiver definido (ou o Scheduler cair), o painel
+volta a ser só o controle do rotor — as abas de satélites e a Previsão mostram
+um aviso, e o cabeçalho continua funcionando. O rotor é a razão de existir da
+página; o resto é adição.
 
 ## O que ainda é do TC Generator
 
