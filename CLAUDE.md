@@ -288,6 +288,15 @@ Manager no `track_satellite` e sai como `[freq]` na 5581 — o elo 1 do
 Doppler. Próxima task desse lado: o operador escolher, no TC Generator, se um
 telecomando vai automaticamente para a próxima passagem ou é atribuído à mão.
 
+O `grs-sdr-sim` imita um satélite de verdade: Doppler da órbita real (NORAD
+ou TLE, pelo painel ou `SIM_ORBIT_NORAD`), calado abaixo do horizonte, em
+tempo real ou "próxima passagem começando agora". A geometria é própria, não
+a da spacelab-tracking, e o painel compara com o Doppler que o Station
+Manager anuncia na 5581 (concordam em 1–5 Hz). Medido: no início de uma
+passagem (+3,3 kHz), sintonia fixa entrega 1 de 16 pacotes; sintonizando em
+portadora + Doppler, todos. Falta o `grs-frequency-synthesizer` fazer essa
+sintonia sozinho.
+
 Os raw packets da :5558 são gravados crus no Postgres
 (`mission_control.raw_packets`) pelo `grs-packet-archiver`, append-only, com
 o horário de recepção em solo — nenhum pacote de passagem real se perde

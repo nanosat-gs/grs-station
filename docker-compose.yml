@@ -380,6 +380,16 @@ services:
       # --pass-duration, como numa passagem de verdade.
       - --doppler-hz=${SIM_DOPPLER_HZ:-0}
       - --pass-duration=${SIM_PASS_DURATION:-600}
+      # Doppler da ÓRBITA REAL: o FS-2 simulado imita o satélite deste NORAD
+      # (TLE do CelesTrak), visto da estação (GS_* abaixo), e fica calado
+      # abaixo do horizonte. Vazio = sem órbita; também dá para ligar pelo
+      # painel. SIM_ORBIT_MODE=next-pass adianta o relógio do satélite para a
+      # próxima passagem começar agora.
+      - --orbit-norad=${SIM_ORBIT_NORAD:-}
+      - --orbit-mode=${SIM_ORBIT_MODE:-realtime}
+      # Só para COMPARAR: o painel mostra o Doppler que o Station Manager
+      # anuncia ao lado do que o simulador impõe. Nunca é aplicado ao sinal.
+      - --station-tuning-source=tcp://station-manager:5581
       # Semente fixa: sem ela, um teste que falha uma vez em dez não é
       # investigável.
       - --seed=${SIM_SEED:-1}
@@ -395,6 +405,10 @@ services:
       - "5556:5556"
       # Só em 127.0.0.1: o painel não tem autenticação e muda o simulador.
       - "127.0.0.1:8090:8090"
+    environment:
+      # A mesma estação do TC Scheduler e do Station Manager: o Doppler da
+      # órbita depende de onde se está olhando.
+      <<: *ground-station
     restart: "no"
     networks:
       spacelab-network:
