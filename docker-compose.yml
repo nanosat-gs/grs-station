@@ -31,6 +31,18 @@ x-ground-station: &ground-station
   GS_ALTITUDE_M: ${GS_ALTITUDE_M:-760}
   GS_MIN_ELEVATION_DEG: ${GS_MIN_ELEVATION_DEG:-0}
 
+# Rádios da estação, um por faixa, todos atrás do mesmo rotor (ver
+# grs-doc/hardware.html: 3x USRP N210; antenas VHF 143-148 MHz e UHF
+# 462-470 MHz). Cada downlink de satélite vai ao rádio cuja faixa o contém, e
+# o Station Manager anuncia a sintonia dele no canal com o nome do rádio
+# (freq.vhf, doppler.uhf). Declarado UMA vez: o Station Manager roteia com
+# isto, e o TC Scheduler usa para o painel dizer que rádio ouve cada downlink.
+# Se os dois discordassem, o painel prometeria um rádio e a estação usaria
+# outro. O terceiro N210 (UHF 398-408 MHz, uplink da carga útil do FS-2) é de
+# transmissão e não entra aqui.
+x-radios: &radios
+  STATION_RADIOS: ${STATION_RADIOS:-vhf=143000000-148000000,uhf=462000000-470000000}
+
 services:
   # --- Infraestrutura compartilhada ---
   postgres:
@@ -134,7 +146,7 @@ services:
       # não tem autenticação. O painel alcança pela rede interna do compose.
       - "127.0.0.1:5591:5591"
     environment:
-      <<: *ground-station
+      <<: [*ground-station, *radios]
       PG_DATABASE_URL: postgresql+psycopg2://${DB_USER:-admin}:${DB_PASSWORD:-admin}@postgres:5432/${DB_NAME:-tc_generator}
       STATION_MANAGER_ZMQ_ADDRESS: tcp://station-manager:5580
       SCHEDULER_HORIZON_HOURS: ${SCHEDULER_HORIZON_HOURS:-24}
@@ -175,20 +187,34 @@ services:
       # -90 quando quiser exercitar o apontamento sem esperar uma passagem real.
       - --pointing-min-elevation=${STATION_POINTING_MIN_ELEVATION:-0}
       - --pointing-interval=${STATION_POINTING_INTERVAL_SECONDS:-1}
-      # Anuncia a portadora ([freq]) e o Doppler ([doppler]) do satélite
-      # rastreado, quando o TC Scheduler cadastrou a frequência de downlink.
-      # Só rede interna: quem assina é o caminho de recepção.
+      # Anuncia a portadora e o Doppler de cada downlink do satélite rastreado
+      # no canal do rádio que o cobre: freq.vhf/doppler.vhf, freq.uhf/...
+      # (rádios em STATION_RADIOS). O Doppler é calculado para o meio do
+      # intervalo entre dois ajustes. Só rede interna: quem assina são os
+      # sintetizadores, um por rádio.
       - --tuning-bind=tcp://0.0.0.0:5581
     ports:
       - "5580:5580"   # ZMQ REP — comandos de rotor e ordens de rastreamento
     environment:
-      # Mesma localização do TC Scheduler (ver x-ground-station no topo).
-      <<: *ground-station
+      # Mesma localização e mesmos rádios do TC Scheduler (ver o topo).
+      <<: [*ground-station, *radios]
     networks:
-      - spacelab-network
-
+      spacelab-network:
+        ipv4_address: 172.30.0.10
 
   # --- Caminho de dados RX (FS-2) ---------------------------------------
+  #
+  # UMA CADEIA POR RÁDIO. O FS-2 desce em duas portadoras ao mesmo tempo
+  # (firmware do TTC 2.0, radio_1/radio_0_config.h; coordenação IARU):
+  #
+  #   beacon  145,9 MHz  1200 baud  GMSK  -> cadeia VHF: os serviços SEM sufixo,
+  #                                         portas de sempre (5556, 5555, 5558)
+  #   dados   468,4 MHz  4800 baud  GMSK  -> cadeia UHF: serviços `-uhf`,
+  #                                         portas +10 no host (5566, 5565, 5568)
+  #
+  # Dentro da rede cada container tem o seu IP, então as portas internas são
+  # as mesmas nas duas cadeias; só o nome muda (grs-iq-rx / grs-iq-rx-uhf...).
+  # Os pacotes das duas chegam à mesma tabela, marcados com o rádio.
   #
   # O caminho de recepção fica atrás de profiles e NÃO sobe num
   # `docker compose up` comum. Um profile por FONTE de IQ — as fontes bindam
@@ -232,9 +258,11 @@ services:
     environment:
       GRS_IQ_RX_CONFIG: /app/config/sdr.json
       GRS_IQ_RX_PANEL_PORT: "8091"
-      # De onde vem o `tune` quando ainda não há configuração salva. Depois do
-      # primeiro "Salvar" no painel vale o que estiver no sdr.json.
+      # De onde vem o `tune` e a sintonia inicial quando ainda não há
+      # configuração salva. Depois do primeiro "Salvar" no painel vale o que
+      # estiver no sdr.json.
       GRS_IQ_RX_DEFAULT_TUNE_SOURCE: tcp://grs-frequency-synthesizer:5557
+      GRS_IQ_RX_DEFAULT_CENTER_FREQUENCY_HZ: ${RX_CENTER_FREQ_HZ:-145900000}
     ports:
       - "5556:5556"   # ZMQ PUB — IQ em cf32_le, sem frame de tópico
       # Só em 127.0.0.1: o painel não tem autenticação e reconfigura o rádio.
@@ -244,6 +272,7 @@ services:
     restart: unless-stopped
     networks:
       spacelab-network:
+        ipv4_address: 172.30.0.20
         aliases:
           - grs-iq-rx
 
@@ -261,11 +290,7 @@ services:
       # ligado. Sem ele, "não achou o SDR" e "não conseguiu dar bind na 5556"
       # são o mesmo silêncio.
       - -v
-      # ATENÇÃO: a frequência é PROVISÓRIA — 145.9 MHz é a beacon do FS-1. A
-      # modulação do FS-2 está confirmada (2GFSK, syncword 5D E6 2A 7E); a
-      # FREQUÊNCIA e o BAUD dependem da coordenação IARU. Mesma situação das
-      # coordenadas GS_*: um exemplo para o cano subir. Trocar antes de
-      # qualquer campanha de gravação real.
+      # 145,9 MHz: o beacon do FS-2 (firmware do TTC 2.0 e coordenação IARU).
       - --frequency=${RX_CENTER_FREQ_HZ:-145900000}
       # 240 kS/s. O RTL-SDR só aceita 225001–300000 e 900001–3200000 S/s:
       # pedir 48 kS/s (a constante do demodulador) NÃO dá erro, o driver
@@ -287,7 +312,8 @@ services:
     # restart automático viraria laço de falha enchendo o log.
     restart: "no"
     networks:
-      - spacelab-network
+      spacelab-network:
+        ipv4_address: 172.30.0.20
 
   grs-demodulator:
     build:
@@ -310,15 +336,18 @@ services:
       # ela). Tem de bater exatamente: medido na tools/bancada_demod.py, 0,08%
       # de diferença já derruba ~65% dos pacotes.
       GRS_DEMOD_SAMPLE_RATE_HZ: ${RX_SAMPLE_RATE_HZ:-240000}
-      # BAUD A CONFIRMAR: 4800 é herança do código, não confirmação do
-      # enlace do FS-2. Ver docs/rx-datapath.md.
-      GRS_DEMOD_BAUD: ${RX_BAUD:-4800}
+      # 1200: o beacon do FS-2 em 145,9 MHz (radio_1_config.h do TTC 2.0:
+      # Rsymb 1200, Fdev 300 Hz). 4800 é o do enlace de dados em UHF, na
+      # cadeia -uhf. Medido na bancada: até ~200 Hz de erro de sintonia a
+      # SNR 10 dB, 300 Hz a SNR 20 dB.
+      GRS_DEMOD_BAUD: ${RX_BAUD:-1200}
       GRS_DEMOD_BT: ${RX_BT:-0.5}
     # Sem depends_on do grs-iq-rx: no profile rxsim ele não existe, e o
     # demodulador apenas reconecta até o publicador aparecer.
     restart: "no"
     networks:
-      - spacelab-network
+      spacelab-network:
+        ipv4_address: 172.30.0.22
 
   grs-syncword-detector:
     build:
@@ -348,7 +377,8 @@ services:
       - grs-demodulator
     restart: "no"
     networks:
-      - spacelab-network
+      spacelab-network:
+        ipv4_address: 172.30.0.23
 
   # SINTETIZADOR DE FREQUÊNCIA — fecha a correção de Doppler.
   #
@@ -372,12 +402,15 @@ services:
       - frequency_synthesizer.py
       - --bind=tcp://*:5557
       - --station-manager=tcp://station-manager:5581
+      # O canal do rádio VHF: assina freq.vhf/doppler.vhf.
+      - --channel=vhf
     # Sem porta publicada: só os receptores, na rede interna, assinam o tune.
     # (tools/send_tune.py, no host, continua livre para BINDAR a 5557 quando
     # o sintetizador estiver parado.)
     restart: unless-stopped
     networks:
-      - spacelab-network
+      spacelab-network:
+        ipv4_address: 172.30.0.21
 
   # SDR VIRTUAL — profile `rxsim`, e não `rx`.
   #
@@ -401,8 +434,9 @@ services:
       - sdr_sim.main
       - --bind=tcp://*:5556
       - --frequency=${RX_CENTER_FREQ_HZ:-145900000}
+      - --fs2-frequency=${RX_CENTER_FREQ_HZ:-145900000}
       - --sample-rate=${RX_SAMPLE_RATE_HZ:-240000}
-      - --baud=${RX_BAUD:-4800}
+      - --baud=${RX_BAUD:-1200}
       - --emitters=${SIM_EMITTERS:-fs2}
       # continuous: rajadas sem parar. manual: o FS-2 fica calado até o
       # painel pedir "enviar 1 pacote". Dá para trocar no painel sem reiniciar.
@@ -422,6 +456,7 @@ services:
       # Só para COMPARAR: o painel mostra o Doppler que o Station Manager
       # anuncia ao lado do que o simulador impõe. Nunca é aplicado ao sinal.
       - --station-tuning-source=tcp://station-manager:5581
+      - --station-tuning-channel=vhf
       # Semente fixa: sem ela, um teste que falha uma vez em dez não é
       # investigável.
       - --seed=${SIM_SEED:-1}
@@ -448,6 +483,7 @@ services:
         # Responde pelo nome do rádio real. Os dois nunca sobem juntos (mesma
         # :5556), então quem estiver de pé é "o grs-iq-rx" — e demodulador e
         # gravador funcionam nos dois profiles sem nenhuma variável no .env.
+        ipv4_address: 172.30.0.20
         aliases:
           - grs-iq-rx
 
@@ -502,6 +538,155 @@ services:
     environment:
       RECORDER_PROFILE: ${RECORDER_PROFILE:-grs-rx-fs2}
       RECORDER_PACKETS_ADDRESS: tcp://grs-syncword-detector:5558
+      # Coluna `radio` de cada pacote: o arquivador -uhf grava "uhf".
+      RECORDER_RADIO: vhf
+      PG_DATABASE_URL: postgresql+psycopg2://${DB_USER:-admin}:${DB_PASSWORD:-admin}@postgres:5432/${DB_NAME:-tc_generator}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - spacelab-network
+
+  # --- Cadeia UHF: dados do FS-2 em 468,4 MHz, 4800 baud ----------------------
+  #
+  # A mesma cadeia do VHF, serviço por serviço, com sufixo -uhf. Só o que
+  # muda está comentado; o resto tem o porquê na versão VHF acima. Fora do
+  # profile `rtlsdr`: o dongle é um só, e fica com o VHF.
+
+  # O N210 da UHF (antena 466CP42, 462-470 MHz). Configuração própria
+  # (volume usrp_uhf_config) e painel próprio em http://localhost:8092.
+  grs-iq-rx-usrp-uhf:
+    build:
+      context: ./repos/grs-iq-rx
+      dockerfile: ../../docker/grs-iq-rx-usrp.Dockerfile
+    container_name: spacelab-grs-iq-rx-usrp-uhf
+    profiles: ["rx"]
+    environment:
+      GRS_IQ_RX_CONFIG: /app/config/sdr.json
+      GRS_IQ_RX_PANEL_PORT: "8091"
+      GRS_IQ_RX_DEFAULT_TUNE_SOURCE: tcp://grs-frequency-synthesizer-uhf:5557
+      GRS_IQ_RX_DEFAULT_CENTER_FREQUENCY_HZ: ${RX_UHF_CENTER_FREQ_HZ:-468400000}
+    ports:
+      - "5566:5556"
+      - "127.0.0.1:8092:8091"
+    volumes:
+      - usrp_uhf_config:/app/config
+    restart: unless-stopped
+    networks:
+      spacelab-network:
+        ipv4_address: 172.30.0.30
+        aliases:
+          - grs-iq-rx-uhf
+
+  grs-sdr-sim-uhf:
+    build: ./repos/grs-sdr-sim
+    container_name: spacelab-grs-sdr-sim-uhf
+    profiles: ["rxsim"]
+    command:
+      - python
+      - -m
+      - sdr_sim.main
+      - --bind=tcp://*:5556
+      - --frequency=${RX_UHF_CENTER_FREQ_HZ:-468400000}
+      - --fs2-frequency=${RX_UHF_CENTER_FREQ_HZ:-468400000}
+      - --sample-rate=${RX_SAMPLE_RATE_HZ:-240000}
+      - --baud=${RX_UHF_BAUD:-4800}
+      - --emitters=fs2
+      - --fs2-mode=${SIM_FS2_MODE:-continuous}
+      - --snr-db=${SIM_SNR_DB:-20}
+      # O mesmo satélite do simulador VHF: as duas portadoras saem da mesma
+      # órbita, e o Doppler da UHF é 468,4/145,9 = 3,2 vezes o da VHF.
+      - --orbit-norad=${SIM_ORBIT_NORAD:-}
+      - --orbit-mode=${SIM_ORBIT_MODE:-realtime}
+      - --station-tuning-source=tcp://station-manager:5581
+      - --station-tuning-channel=uhf
+      # Semente diferente da VHF: o mesmo ruído nas duas cadeias esconderia
+      # erro que dependesse do ruído.
+      - --seed=${SIM_UHF_SEED:-2}
+      - --panel-port=8090
+      - --packets-source=tcp://grs-syncword-detector-uhf:5558
+      - --tune-source=tcp://grs-frequency-synthesizer-uhf:5557
+    ports:
+      - "5566:5556"
+      - "127.0.0.1:8093:8090"
+    environment:
+      <<: *ground-station
+    restart: "no"
+    networks:
+      spacelab-network:
+        ipv4_address: 172.30.0.30
+        aliases:
+          - grs-iq-rx-uhf
+
+  grs-frequency-synthesizer-uhf:
+    build:
+      context: ./repos/grs-frequency-synthesizer
+      dockerfile: ../../docker/grs-frequency-synthesizer.Dockerfile
+    container_name: spacelab-grs-frequency-synthesizer-uhf
+    profiles: ["rx", "rxsim"]
+    command:
+      - python
+      - frequency_synthesizer.py
+      - --bind=tcp://*:5557
+      - --station-manager=tcp://station-manager:5581
+      - --channel=uhf
+    restart: unless-stopped
+    networks:
+      spacelab-network:
+        ipv4_address: 172.30.0.31
+
+  grs-demodulator-uhf:
+    build:
+      context: ./repos/grs-demodulator
+      dockerfile: ../../docker/grs-demodulator.Dockerfile
+    container_name: spacelab-grs-demodulator-uhf
+    profiles: ["rx", "rxsim"]
+    ports:
+      - "5565:5555"
+    environment:
+      GRS_DEMOD_IQ_SOURCE: ${RX_UHF_IQ_SOURCE:-tcp://grs-iq-rx-uhf:5556}
+      GRS_DEMOD_BITS_BIND: tcp://*:5555
+      GRS_DEMOD_SAMPLE_RATE_HZ: ${RX_SAMPLE_RATE_HZ:-240000}
+      # 4800: radio_0_config.h do TTC 2.0 (Rsymb 4800, Fdev 1200 Hz).
+      GRS_DEMOD_BAUD: ${RX_UHF_BAUD:-4800}
+      GRS_DEMOD_BT: ${RX_BT:-0.5}
+    restart: "no"
+    networks:
+      spacelab-network:
+        ipv4_address: 172.30.0.32
+
+  grs-syncword-detector-uhf:
+    build:
+      context: ./repos/grs-syncword-detector
+      dockerfile: ../../docker/grs-syncword-detector.Dockerfile
+    container_name: spacelab-grs-syncword-detector-uhf
+    profiles: ["rx", "rxsim"]
+    ports:
+      - "5568:5558"
+    environment:
+      GRS_SYNCWORD_BITS_SOURCE: tcp://grs-demodulator-uhf:5555
+      GRS_SYNCWORD_PACKETS_BIND: tcp://*:5558
+      # O mesmo NGHam nos dois enlaces do FS-2.
+      GRS_SYNCWORD_BYTES: ${RX_SYNCWORD:-5DE62A7E}
+      GRS_SYNCWORD_PACKET_BYTES: ${RX_PACKET_BYTES:-255}
+      GRS_SYNCWORD_MAX_ERRORS: ${RX_SYNCWORD_MAX_ERRORS:-1}
+    depends_on:
+      - grs-demodulator-uhf
+    restart: "no"
+    networks:
+      spacelab-network:
+        ipv4_address: 172.30.0.33
+
+  grs-packet-archiver-uhf:
+    build: ./repos/grs-iq-recorder
+    container_name: spacelab-grs-packet-archiver-uhf
+    profiles: ["rx", "rxsim"]
+    command: ["python", "-m", "iq_recorder.main", "archive-packets"]
+    environment:
+      RECORDER_PROFILE: ${RECORDER_PROFILE:-grs-rx-fs2}
+      RECORDER_PACKETS_ADDRESS: tcp://grs-syncword-detector-uhf:5558
+      RECORDER_RADIO: uhf
       PG_DATABASE_URL: postgresql+psycopg2://${DB_USER:-admin}:${DB_PASSWORD:-admin}@postgres:5432/${DB_NAME:-tc_generator}
     depends_on:
       postgres:
@@ -536,6 +721,7 @@ services:
       - iq_captures:/app/captures
     networks:
       spacelab-network:
+        ipv4_address: 172.30.0.20
         aliases:
           - grs-iq-rx
 
@@ -546,8 +732,28 @@ volumes:
   # e não podem cair dentro da árvore de trabalho.
   iq_captures:
   # Configuração do receptor USRP (IP do rádio etc.), editada pelo painel.
+  # Uma por N210: o da VHF (painel 8091) e o da UHF (painel 8092).
   usrp_config:
+  usrp_uhf_config:
 
 networks:
+  # Sub-rede FIXA, com IP fixo (ipv4_address) para quem publica ZMQ ou
+  # responde REQ. O motivo foi medido, e é sério: o ZMQ resolve
+  # o nome do serviço UMA vez e, se a conexão cai, reconecta no IP antigo.
+  # Recriando dois detectores juntos, o Docker deu ao detector VHF o IP que era
+  # do UHF — e o arquivador UHF passou a gravar pacotes do beacon marcados como
+  # "uhf", sem erro nenhum. Com IP fixo, um IP nunca muda de dono.
+  #
+  #   172.30.0.10        station-manager
+  #   172.30.0.20-23     cadeia VHF: fonte de IQ (sim/USRP/RTL-SDR/replay,
+  #                      que nunca rodam juntos), sintetizador, demodulador, detector
+  #   172.30.0.30-33     cadeia UHF: idem
+  #   172.30.1.0/24      todo o resto, dinâmico — fora da faixa dos fixos, para
+  #                      um serviço sem IP fixo nunca ocupar o de um que tem
   spacelab-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
+          ip_range: 172.30.1.0/24
+          gateway: 172.30.0.1

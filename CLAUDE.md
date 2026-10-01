@@ -71,10 +71,11 @@ para `test-all.ps1`). `.\bootstrap.ps1 -Check` confere antes de subir.
 | **IQ Receiver — ZMQ PUB (IQ)** | **5556** |
 | **Demodulator — ZMQ PUB (bits)** | **5555** |
 | **Syncword Detector — ZMQ PUB (raw packets)** | **5558** |
+| Cadeia UHF (`-uhf`): IQ / bits / raw packets | 5566 / 5565 / 5568 |
 | Station Manager — ZMQ PUB (freq/doppler) | 5581 (rede interna) |
 | Frequency Synthesizer — ZMQ PUB (tune) | 5557 (rede interna) |
-| Painel do receptor USRP (profile `rx`, só 127.0.0.1) | 8091 |
-| Painel do SDR Sim (profile `rxsim`, só 127.0.0.1) | 8090 |
+| Painel do receptor USRP VHF / UHF (profile `rx`, só 127.0.0.1) | 8091 / 8092 |
+| Painel do SDR Sim VHF / UHF (profile `rxsim`, só 127.0.0.1) | 8090 / 8093 |
 
 Links, credenciais de desenvolvimento e endpoints em `docs/acessos.md`. A
 confusão mais comum é abrir a 4533 (rotctld, protocolo hamlib) esperando o
@@ -182,15 +183,26 @@ porque sem isso um comando ficava em `queued` para sempre. Só passagem
 - **Satélite sem passagem planejada: confira a aba Previsão.** Ela mostra o
   motivo de cada passagem (perdeu o conflito, pulada, recepção desligada).
   Com a recepção desligada, só entram passagens com telecomando ou forçadas.
-- **A frequência de downlink só é anunciada se cadastrada.** Sem ela o rotor
-  segue a passagem, mas o Station Manager não publica `[freq]`/`[doppler]` na
-  5581 (`--tuning-bind` no compose). O `[freq]` sai uma vez, no início da
-  passagem, e é repetido a cada tantos `[doppler]` — que só saem com o
-  satélite acima da elevação mínima.
-- **Uma fonte de IQ por vez: `rx` (USRP N210), `rtlsdr` (dongle, receptor
-  em C), `rxsim` (simulador), `replay` (captura).** Todas BINDAM a :5556 e
-  respondem pelo nome `grs-iq-rx`; duas ao mesmo tempo disputam a porta e
-  quem perde cai em silêncio. O demodulador, o detector e o gravador não
+- **Sintonia só sai para downlink cadastrado.** Sem downlink o rotor segue a
+  passagem, mas o Station Manager não publica nada na 5581. Com downlinks,
+  cada um vai ao rádio cuja faixa o contém (`STATION_RADIOS`) e sai no canal
+  dele: `freq.vhf`/`doppler.vhf`, `freq.uhf`/... O `[doppler]` sai a cada
+  tick com o satélite acima OU abaixo do horizonte; a elevação mínima só
+  decide se o ROTOR se move.
+- **Uma cadeia de recepção por rádio, todos atrás do mesmo rotor.** Os
+  serviços sem sufixo são a cadeia VHF (beacon do FS-2, 145,9 MHz, 1200
+  baud); os `-uhf`, a de dados (468,4 MHz, 4800 baud). Cada pacote vai ao
+  banco com a coluna `radio`.
+- **Quem publica ZMQ tem IP fixo, e isso não é enfeite.** O ZMQ resolve o
+  nome uma vez e reconecta no IP antigo. Sem IP fixo, recriar os dois
+  detectores juntos fez o arquivador UHF gravar pacotes do VHF marcados como
+  "uhf", sem erro nenhum. Mapa de IPs no fim do `docker-compose.yml`; um
+  serviço novo que publica ZMQ precisa de `ipv4_address`.
+- **Uma fonte de IQ por vez em cada cadeia: `rx` (USRP N210), `rtlsdr`
+  (dongle, só VHF), `rxsim` (simulador), `replay` (captura).** As fontes de
+  uma cadeia respondem pelo mesmo nome (`grs-iq-rx`, `grs-iq-rx-uhf`) e
+  dividem o MESMO IP fixo: subir duas juntas agora falha com "Address already
+  in use", em vez de as duas disputarem a porta em silêncio. O demodulador, o detector e o gravador não
   sabem qual está do outro lado, que é o ponto. Ver "Profiles" em
   `docs/rx-datapath.md`.
 - **O demodulador assina UM nome, e isso é deliberado.** Assinar dois
@@ -298,6 +310,18 @@ a da spacelab-tracking, e o painel compara com o Doppler que o Station
 Manager anuncia na 5581 (concordam em 1–5 Hz). Medido: no início de uma
 passagem (+3,3 kHz), sintonia fixa entrega 1 de 16 pacotes; sintonizando em
 portadora + Doppler, todos.
+
+Dois rádios, uma passagem: o FS-2 desce o beacon em 145,9 MHz (1200 baud)
+e os dados em 468,4 MHz (4800 baud) — valores do firmware do TTC 2.0 e da
+coordenação IARU do GOLDS-UFSC. Cada satélite tem uma lista de downlinks
+(painel do operador), o Station Manager calcula o Doppler de cada um (o da
+referência pela spacelab-tracking, os outros por proporção, para o meio do
+intervalo entre ajustes) e um sintetizador por rádio sintoniza a sua cadeia.
+Medido com a ISS: as duas cadeias a ≤1 Hz do centro e todos os pacotes nas
+duas, contra 0 sem correção; estação e simulador concordam em 0–1 Hz. Pelo
+caminho: o detector de syncword pulava o pacote seguinte quando ele caía
+dentro da fatia de 255 bytes do anterior (metade dos pacotes do beacon a
+1200 baud), e a troca de IP descrita nas armadilhas.
 
 Correção de Doppler automática, ponta a ponta: o `grs-frequency-synthesizer`
 (fork, branch `station`) assina a :5581, soma nominal + Doppler e publica o

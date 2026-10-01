@@ -14,6 +14,10 @@ Uso (dentro da imagem do demodulador, que já tem numpy e scipy):
     docker run --rm -v "${PWD}/tools:/tools" -v "${PWD}/repos/grs-sdr-sim/src:/sim" \\
         -v "${PWD}/repos/grs-demodulator:/app" gs-stationmanager-grs-demodulator \\
         sh -c "PYTHONPATH=/sim:/app python /tools/bancada_demod.py --snr 20 --seconds 40"
+
+Tolerância a erro de sintonia (o que sobra depois da correção de Doppler):
+
+    ... python /tools/bancada_demod.py --baud 1200 --residual 150
 """
 
 from __future__ import annotations
@@ -28,6 +32,8 @@ from sdr_sim import emitters as em
 from sdr_sim.spectrum import VirtualSpectrum
 
 SAMPLE_RATE = 240_000
+# 4800: o enlace de dados do FS-2 (468,4 MHz). 1200: o beacon (145,9 MHz).
+# Valores do firmware do TTC 2.0 (radio_0_config.h, radio_1_config.h).
 BAUD = 4800
 CENTER = 145_900_000.0
 BLOCK_SAMPLES = 8192
@@ -66,11 +72,15 @@ def find_packets(bits: np.ndarray, max_errors: int = 1) -> list[tuple[int, bytes
 
 
 def run(snr_db: float | None, seconds: float, seed: int, doppler_hz: float,
-        env: dict[str, str] | None = None, offset: int = 0) -> dict:
+        env: dict[str, str] | None = None, offset: int = 0, baud: int = BAUD,
+        residual_hz: float = 0.0) -> dict:
     doppler = em.PassDoppler(doppler_hz, seconds) if doppler_hz else None
-    fs2 = em.fs2_beacon(CENTER, SAMPLE_RATE, BAUD, PAYLOAD, gap_s=0.5, doppler=doppler)
-    spectrum = VirtualSpectrum(CENTER, SAMPLE_RATE, [fs2], snr_db=snr_db, seed=seed)
-    demod = GRSDemodulator(env=env or {})
+    fs2 = em.fs2_beacon(CENTER, SAMPLE_RATE, baud, PAYLOAD, gap_s=0.5, doppler=doppler)
+    # Desvio residual: o receptor sintonizado `residual_hz` abaixo do sinal,
+    # que é o que sobra de uma correção de Doppler imperfeita (oscilador do
+    # satélite, TLE, o dente de serra entre dois ajustes).
+    spectrum = VirtualSpectrum(CENTER - residual_hz, SAMPLE_RATE, [fs2], snr_db=snr_db, seed=seed)
+    demod = GRSDemodulator(env={"GRS_DEMOD_BAUD": str(baud), **(env or {})})
 
     period = len(fs2.waveform)
     total = int(seconds * SAMPLE_RATE)
@@ -95,7 +105,7 @@ def run(snr_db: float | None, seconds: float, seed: int, doppler_hz: float,
     # dos filtros.
     processed = generated - len(buffer) // 8
     burst = period - int(round(0.5 * SAMPLE_RATE))
-    latency = 4 * SAMPLE_RATE // BAUD
+    latency = 4 * SAMPLE_RATE // baud
     sent = sum(1 for k in range(processed // period + 1)
                if k * period + burst + latency <= processed)
     packets = find_packets(np.array(bits, dtype=np.uint8))
@@ -104,13 +114,13 @@ def run(snr_db: float | None, seconds: float, seed: int, doppler_hz: float,
     starts = [start for start, _ in packets]
     return {
         # Número da rajada (0 = a primeira) de cada pacote que divergiu.
-        "bad_bursts": [round(start * (SAMPLE_RATE / BAUD) / period)
+        "bad_bursts": [round(start * (SAMPLE_RATE / baud) / period)
                        for start, payload in packets if payload != PAYLOAD],
         "sent": sent,
         "found": len(packets),
         "ok": ok,
         "diverge": len(packets) - ok,
-        "bits_per_period": period / (SAMPLE_RATE / BAUD),
+        "bits_per_period": period / (SAMPLE_RATE / baud),
         "spacing": sorted(set(np.diff(starts).tolist())) if len(starts) > 1 else [],
     }
 
@@ -124,17 +134,24 @@ def main() -> int:
     parser.add_argument("--doppler", type=float, default=0.0, help="pico em Hz")
     parser.add_argument("--dc-tau", type=float, default=None,
                         help="GRS_DEMOD_DC_TAU_S, em segundos. Omitido = padrão do demodulador.")
-    parser.add_argument("--offset", type=int, default=25,
-                        help="Atraso em amostras (fase de símbolo). 25 = meio símbolo, o "
-                             "pior caso a 50 amostras/símbolo.")
+    parser.add_argument("--offset", type=int, default=None,
+                        help="Atraso em amostras (fase de símbolo). Omitido = meio símbolo, "
+                             "o pior caso (25 a 4800 baud, 100 a 1200).")
+    parser.add_argument("--baud", type=int, default=BAUD,
+                        help="4800 (dados, 468,4 MHz) ou 1200 (beacon, 145,9 MHz)")
+    parser.add_argument("--residual", type=float, default=0.0,
+                        help="Erro de sintonia fixo, em Hz (sinal fora do centro)")
     args = parser.parse_args()
+    if args.offset is None:
+        args.offset = SAMPLE_RATE // args.baud // 2
 
     snr = None if args.snr.lower() == "none" else float(args.snr)
     env = {} if args.dc_tau is None else {"GRS_DEMOD_DC_TAU_S": str(args.dc_tau)}
-    r = run(snr, args.seconds, args.seed, args.doppler, env, args.offset)
+    r = run(snr, args.seconds, args.seed, args.doppler, env, args.offset,
+            args.baud, args.residual)
 
     lost = r["sent"] - r["ok"]
-    print(f"SNR {args.snr:>5} dB | enviados {r['sent']:3} | achados {r['found']:3} | "
+    print(f"{args.baud} baud | residual {args.residual:+6.0f} Hz | SNR {args.snr:>5} dB | enviados {r['sent']:3} | achados {r['found']:3} | "
           f"corretos {r['ok']:3} | divergentes {r['diverge']:3} | perdidos {lost:3} "
           f"({100 * r['ok'] / max(r['sent'], 1):5.1f}% íntegros)")
     print(f"           período {r['bits_per_period']:.2f} bits; espaçamentos vistos {r['spacing'][:8]}"

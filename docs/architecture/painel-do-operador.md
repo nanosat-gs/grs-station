@@ -66,9 +66,13 @@ que o satélite transmite sozinho. O operador ajusta isso de dois jeitos:
   A passagem é identificada por satélite + AOS previsto, porque as linhas de
   passagem são recriadas a cada replanejamento.
 - **Por satélite, no detalhe:** a chave **"Rastrear passagens para recepção"**
-  (desligada, só entram passagens com telecomando ou forçadas) e a
-  **frequência de downlink** em MHz. Com ela cadastrada, o Station Manager
-  anuncia portadora e Doppler ao caminho de recepção durante a passagem.
+  (desligada, só entram passagens com telecomando ou forçadas) e a lista de
+  **downlinks** do satélite: nome, frequência em MHz e ligado/desligado (o
+  FS-2 tem dois: beacon em 145,9 MHz e dados em 468,4 MHz). Ao lado de cada
+  um, o rádio da estação que vai ouvi-lo, ou o motivo de nenhum ouvir
+  (frequência fora das faixas das antenas, ou rádio já ocupado por um
+  downlink anterior da lista). Na passagem, o Station Manager anuncia
+  portadora e Doppler de cada downlink ao rádio dele.
 
 O Scheduler grava a decisão na hora e replaneja em poucos segundos; enquanto
 isso a linha mostra "replanejando…". Frequência fora de 1 a 6000 MHz

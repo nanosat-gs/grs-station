@@ -22,7 +22,12 @@ RTL-SDR ──▶ grs-iq-rx (C) ───┼─ PUB :5556 (cf32_le, 240 kS/s) �
 simulador ▶ grs-sdr-sim ─────┤  todos respondem por grs-iq-rx  │
 captura ──▶ grs-iq-replay ───┘                                 └──(tap)─▶ grs-iq-recorder ─▶ captura SigMF + índice
 
-Station Manager ─ PUB :5581 [freq][doppler] ─▶ grs-frequency-synthesizer ─ PUB :5557 [tune] ─▶ fonte de IQ (USRP, simulador)
+Station Manager ─ PUB :5581 [freq.vhf][doppler.vhf] ─▶ grs-frequency-synthesizer ─ PUB :5557 [tune] ─▶ fonte de IQ VHF
+                 └────── [freq.uhf][doppler.uhf] ─▶ grs-frequency-synthesizer-uhf ─ :5557 ─▶ fonte de IQ UHF
+
+A cadeia de cima é a do VHF (beacon, 145,9 MHz, 1200 baud). A UHF (dados,
+468,4 MHz, 4800 baud) é a mesma cadeia com sufixo -uhf: grs-iq-rx-uhf,
+grs-demodulator-uhf, grs-syncword-detector-uhf, grs-packet-archiver-uhf.
 
 :5558 ─▶ grs-packet-archiver ─▶ Postgres mission_control.raw_packets (todo raw packet, append-only)
 ```
@@ -188,10 +193,10 @@ Coisas a saber:
 - **Religado no meio da passagem, ele leva até ~30 s para retomar.** Descarta
   os `doppler` até o Station Manager reenviar o `freq` (a cada 30 anúncios).
   Nesse meio-tempo o receptor fica na última sintonia, que é o certo.
-- **O `[doppler]` só sai com o satélite acima da elevação mínima de
-  apontamento** (0° por padrão). Numa passagem real isso é o certo; na
-  bancada, a passagem sintética aponta para o outro lado da Terra — suba o
-  Station Manager com `STATION_POINTING_MIN_ELEVATION=-90`.
+- **O `[doppler]` sai a cada tick, com o satélite acima ou abaixo do
+  horizonte.** A elevação mínima de apontamento só decide se o rotor se move.
+  (Uma versão anterior deste documento dizia o contrário; o código nunca fez
+  isso.)
 - **A frequência cadastrada tem de ser a que o satélite transmite** (no
   simulador, a do FS-2). Diferença ali é um offset que nenhuma correção de
   Doppler tira; o painel do simulador avisa.
@@ -408,6 +413,74 @@ pertence.
 O `grs-iq-recorder` é nosso, então o Dockerfile dele mora no próprio
 repositório, como nos outros blocos da estação.
 
+## Dois rádios: um downlink por faixa
+
+O FS-2 desce em duas portadoras, e os valores vêm do firmware do rádio de
+bordo (`spacelab-ufsc/ttc2`, `firmware/config/radio_*_config.h`, iguais em
+todas as branches), que bate com a coordenação IARU do GOLDS-UFSC:
+
+| Enlace | Frequência | Taxa | Desvio | Cadeia |
+|---|---|---|---|---|
+| beacon | 145,9 MHz | 1200 baud | 300 Hz | VHF (sem sufixo) |
+| dados | 468,4 MHz | 4800 baud | 1200 Hz | UHF (`-uhf`) |
+| carga útil (EDC) | 401,635 MHz | 400 bps BPSK | — | uplink, fora daqui |
+
+A documentação da missão (`floripasat2-doc`) mistura versões antigas (437,
+450, 462,5 MHz; 9600 baud) e não deve ser usada para frequência.
+
+Como funciona:
+
+- **Cadastro:** cada satélite tem uma lista de downlinks (nome, frequência,
+  ligado), no detalhe do satélite no painel. A ordem importa: o primeiro
+  ligado é a referência do Doppler, e numa faixa com dois fica o primeiro.
+- **Rádios:** `STATION_RADIOS` no compose (`vhf=143000000-148000000,
+  uhf=462000000-470000000`), lido pelo Station Manager (que roteia) e pelo TC
+  Scheduler (que mostra no painel quem ouve cada downlink). Um downlink fora
+  de todas as faixas não é ouvido, e o painel avisa no cadastro.
+- **Doppler:** a spacelab-tracking calcula o da referência; os outros saem
+  por proporção (o desvio é f·v/c). Calculado para o meio do intervalo entre
+  dois ajustes, o que reduz o erro de dente de serra pela metade.
+- **Canais:** cada rádio no seu tópico (`freq.vhf`, `doppler.uhf`), um
+  sintetizador por rádio (`--channel`). Cuidado com o prefixo do ZMQ:
+  assinar `freq` também recebe `freq.vhf` — quem assina compara o tópico
+  inteiro.
+- **Banco:** um arquivador por cadeia; `raw_packets.radio` diz de onde veio.
+
+Tolerância a erro de sintonia, medida na bancada (`tools/bancada_demod.py
+--baud --residual`), 40 s de rajadas:
+
+| Taxa | SNR 20 dB | SNR 10 dB |
+|---|---|---|
+| 1200 baud (beacon) | íntegro até 300 Hz, cai a 400 | íntegro até 200 Hz, 67% a 300 |
+| 4800 baud (dados) | íntegro até 400 Hz, cai a 600 | íntegro até 300 Hz |
+
+O pior dente de serra, numa passagem a pino, é de ~59 Hz/s em VHF e ~176
+Hz/s em UHF; com o Doppler calculado para o meio do intervalo de 1 s, ±29 e
+±88 Hz. Cabe. O que ainda não cabe é o oscilador do satélite: o rádio
+declara cristal de ±10 ppm (até ±1,5 kHz em VHF, ±4,7 kHz em UHF). A
+frequência cadastrada tem de ser a MEDIDA nas primeiras passagens.
+
+Medido no compose, com os dois simuladores imitando a ISS e uma passagem
+sintética: sem correção, 0 pacotes nas duas cadeias (−526 e −1682 Hz); com
+correção, as duas a ≤1 Hz do centro, 67 de 66 no VHF e 119 de 116 no UHF
+(íntegros passa de enviados pelos que ainda estavam a caminho na contagem),
+e o Doppler da estação e o do simulador concordando em 0–1 Hz.
+
+Dois defeitos que só a segunda cadeia mostrou:
+
+- **O detector pulava o pacote seguinte.** Depois de publicar, ele avançava
+  a fatia inteira de 255 bytes (2040 bits), e o syncword seguinte, se caísse
+  ali dentro, sumia. A 1200 baud o simulador manda uma rajada a cada 1400
+  bits: metade dos pacotes, nenhum corrompido, simplesmente nunca
+  publicados. Agora ele avança só até o fim do syncword encontrado. O mesmo
+  valeria para frames NGHam curtos em sequência no enlace de dados.
+- **Pacote no rádio errado.** O ZMQ resolve o nome uma vez e reconecta no IP
+  antigo. Recriando os dois detectores juntos, o Docker deu ao detector VHF
+  o IP do UHF, e o arquivador UHF passou a gravar pacotes do beacon como
+  "uhf". Por isso a sub-rede tem IP fixo para quem publica ZMQ (fim do
+  `docker-compose.yml`). As fontes de IQ de uma cadeia dividem o mesmo IP:
+  subir duas juntas falha com erro, em vez de disputarem a porta em silêncio.
+
 ## Profiles
 
 O caminho de recepção **não sobe** num `docker compose up` comum. Um profile
@@ -416,9 +489,9 @@ então nunca sobem juntas e o resto do cano não sabe qual está ali:
 
 | Profile | Fonte de IQ | Quando |
 |---|---|---|
-| `rx` | `grs-iq-rx-usrp` — USRP N210, python3-uhd, painel em `localhost:8091` | o rádio da estação |
-| `rtlsdr` | `grs-iq-rx` — o receptor em C do plano original | quem tiver um dongle |
-| `rxsim` | `grs-sdr-sim` — painel em `localhost:8090` | sem hardware |
+| `rx` | `grs-iq-rx-usrp` e `grs-iq-rx-usrp-uhf` — dois N210, painéis em `localhost:8091` e `:8092` | os rádios da estação |
+| `rtlsdr` | `grs-iq-rx` — o receptor em C do plano original, só VHF | quem tiver um dongle |
+| `rxsim` | `grs-sdr-sim` e `grs-sdr-sim-uhf` — painéis em `localhost:8090` e `:8093` | sem hardware |
 | `replay` | `grs-iq-replay` — uma captura, sob demanda | regressão offline |
 
 ```powershell
