@@ -179,6 +179,14 @@ if ($Dev) {
         python -m pip install --quiet -e $path
         if ($LASTEXITCODE -ne 0) { Write-Warning "  falhou em $name" }
     }
+    # O sintetizador e um script, sem pyproject (assim veio do upstream): so as
+    # dependencias. Os testes dele acham o modulo pelo proprio caminho.
+    $synth = Join-Path $reposDir "grs-frequency-synthesizer\requirements.txt"
+    if (Test-Path $synth) {
+        Write-Host "  pip install -r repos/grs-frequency-synthesizer/requirements.txt"
+        python -m pip install --quiet -r $synth
+        if ($LASTEXITCODE -ne 0) { Write-Warning "  falhou em grs-frequency-synthesizer" }
+    }
     # Confere o código de saída: este install é o que traz o pytest, e sem ele
     # o test-all.ps1 reporta TODOS os repositórios como falhos sem dizer por quê.
     Write-Host "  pip install -e .[dev]"

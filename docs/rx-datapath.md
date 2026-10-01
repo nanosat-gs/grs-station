@@ -5,7 +5,7 @@ RX*. Registra o que se descobriu **lendo, compilando e rodando** os
 repositórios adotados, a razão de cada ref pinado no `repos.txt`, e os
 envelopes ZMQ que a fatia fechou.
 
-Os três blocos adotados vivem em **forks sob `nanosat-gs`**, todos na branch
+Os blocos adotados vivem em **forks sob `nanosat-gs`**, todos na branch
 `station`, criada a partir do ref que de fato roda em cada um. A relação de
 fork foi preservada, então PR de volta para o `spacelab-ufsc` continua
 funcionando.
@@ -22,6 +22,8 @@ RTL-SDR ──▶ grs-iq-rx (C) ───┼─ PUB :5556 (cf32_le, 240 kS/s) �
 simulador ▶ grs-sdr-sim ─────┤  todos respondem por grs-iq-rx  │
 captura ──▶ grs-iq-replay ───┘                                 └──(tap)─▶ grs-iq-recorder ─▶ captura SigMF + índice
 
+Station Manager ─ PUB :5581 [freq][doppler] ─▶ grs-frequency-synthesizer ─ PUB :5557 [tune] ─▶ fonte de IQ (USRP, simulador)
+
 :5558 ─▶ grs-packet-archiver ─▶ Postgres mission_control.raw_packets (todo raw packet, append-only)
 ```
 
@@ -31,7 +33,8 @@ Uma fonte de IQ por vez, cada uma no seu profile — ver "Profiles" no fim.
 |---|---|---|
 | 5556 | `grs-iq-rx` | IQ, `cf32_le`, **sem frame de tópico** |
 | 5555 | `grs-demodulator` | bits, **um byte por bit** (0x00/0x01), sem tópico |
-| 5557 | `grs-frequency-synthesizer` | `[b"tune", <freq Hz ASCII>]` — fora desta fatia |
+| 5557 | `grs-frequency-synthesizer` | `[b"tune", <freq Hz ASCII>]` — nominal + Doppler, a cada segundo de passagem |
+| 5581 | `station-manager` | `[b"freq", <Hz>]` no início da passagem (repetido a cada 30) e `[b"doppler", <Hz>]` a cada tick |
 | 5558 | `grs-syncword-detector` | raw packets: `[tópico][JSON][payload]` |
 
 ## Refs pinados, e o motivo de cada um
@@ -137,6 +140,69 @@ ok: one bit error, tolerated -> 132
 ok: one bit error, not tolerated -> -1
 ok: empty stream, nothing found -> -1
 ```
+
+### `grs-frequency-synthesizer` → `station`, a partir de `master`
+
+`master` e `dev` têm o mesmo conteúdo no upstream: um arquivo, a classe
+`FrequencySynthesizer`, sem ponto de entrada. A conta e o protocolo estavam
+certos (`tune` = `freq` + `doppler`). A `station` muda três coisas:
+
+- **`main` com os endereços por argumento**, para rodar como processo
+  próprio. O README do upstream diz que o Station Manager instancia a classe;
+  o diagrama da estação põe o sintetizador no Station Server, ao lado do
+  receptor, e o Station Manager no Control Server. Seguimos o diagrama.
+- **`freq` repetido não zera o Doppler.** O Station Manager reenvia a nominal
+  a cada 30 anúncios, para quem conectou no meio da passagem. No upstream,
+  cada reenvio zerava o Doppler e mandava o receptor de volta à nominal por
+  ~1 s — com 3 kHz de desvio, um buraco a cada 30 s.
+- **Mensagem malformada é descartada**, em vez de encerrar o laço com
+  exceção (só `zmq.Again` era tratado).
+
+As duas correções servem a qualquer usuário do upstream: candidatas a PR.
+
+## Correção de Doppler, ponta a ponta
+
+```
+TC Scheduler ─ track_satellite(downlink_frequency_hz) ─▶ Station Manager
+Station Manager ─ :5581 [freq][doppler] ─▶ grs-frequency-synthesizer ─ :5557 [tune] ─▶ receptor
+```
+
+Malha ABERTA: o Doppler é previsto pelo TLE, ninguém mede o sinal. A
+frequência de downlink é cadastrada por satélite no painel do operador.
+
+Medido no compose, com o simulador imitando a ISS (Doppler da órbita real,
+geometria própria do simulador) e uma passagem sintética do `station_demo.py`:
+
+| Fase | Sinal em relação ao centro | Pacotes íntegros |
+|---|---|---|
+| sem passagem (sintetizador calado) | −1250 Hz | 0 de 39 |
+| passagem rastreada | 0 a 2 Hz | todos, 0 divergentes |
+| sintetizador parado no meio | deriva de 16 a 82 Hz em 48 s (receptor fica na última sintonia) | todos |
+| sintetizador religado | volta a −4 Hz em ~26 s | todos |
+
+O rotor não sentiu nenhuma das fases: o apontamento não passa pelo
+sintetizador.
+
+Coisas a saber:
+
+- **Religado no meio da passagem, ele leva até ~30 s para retomar.** Descarta
+  os `doppler` até o Station Manager reenviar o `freq` (a cada 30 anúncios).
+  Nesse meio-tempo o receptor fica na última sintonia, que é o certo.
+- **O `[doppler]` só sai com o satélite acima da elevação mínima de
+  apontamento** (0° por padrão). Numa passagem real isso é o certo; na
+  bancada, a passagem sintética aponta para o outro lado da Terra — suba o
+  Station Manager com `STATION_POINTING_MIN_ELEVATION=-90`.
+- **A frequência cadastrada tem de ser a que o satélite transmite** (no
+  simulador, a do FS-2). Diferença ali é um offset que nenhuma correção de
+  Doppler tira; o painel do simulador avisa.
+- **Fim da passagem: o receptor fica na última sintonia** (até ~3 kHz da
+  nominal) até a próxima passagem mandar `freq`. Entre passagens não há o que
+  receber.
+- **O `grs-iq-rx` em C (RTL-SDR) não tem `tune`.** Por isso o sintetizador
+  fica fora do profile `rtlsdr`.
+- **USRP:** o `tune_source` vem do `sdr.json` salvo pelo painel; sem arquivo
+  salvo, de `GRS_IQ_RX_DEFAULT_TUNE_SOURCE` (o compose aponta para o
+  sintetizador). Um "Salvar" com o campo vazio desliga o `tune` de propósito.
 
 ## Os envelopes, fechados (Épico B)
 
@@ -269,7 +335,8 @@ desvio residual (60 de 60), melhor a 500 Hz (52 contra 37).
 A única falha que sobra sem ruído é a rajada que começa no instante exato em
 que o demodulador liga, antes de o sincronismo convergir. Acima de ~1 kHz de
 desvio nenhuma remoção de DC resolve: o Doppler tem de ser corrigido pela
-sintonia (Station Manager → sintetizador → `tune`), como a estação já prevê.
+sintonia (Station Manager → sintetizador → `tune`) — ver "Correção de
+Doppler, ponta a ponta".
 
 ## A armadilha de taxa de amostragem
 

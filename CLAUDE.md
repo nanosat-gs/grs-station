@@ -27,12 +27,13 @@ cada base.
 | **IQ Receiver** | `nanosat-gs/grs-iq-rx` @ `station` | Bloco SDR. Pasta `usrp/`: o USRP N210 da estação (python3-uhd, reamostra 250k→240k, painel na 8091). Raiz: o receptor C/RTL-SDR. Os dois publicam IQ `cf32_le` na 5556, em lote |
 | **Demodulator** | `nanosat-gs/grs-demodulator` @ `station` | IQ -> bits na 5555, um byte por bit |
 | **Syncword Detector** | `nanosat-gs/grs-syncword-detector` @ `station` | Biblioteca C + serviço: raw packets na 5558 |
+| **Frequency Synthesizer** | `nanosat-gs/grs-frequency-synthesizer` @ `station` | Nominal + Doppler (:5581) -> `tune` na 5557: a correção de Doppler |
 | **IQ Recorder** | `nanosat-gs/grs-iq-recorder` | **Nosso.** Captura, replay e índice do fluxo de IQ |
 | **SDR Sim** | `nanosat-gs/grs-sdr-sim` | **Nosso.** SDR virtual: substituto do `grs-iq-rx` para testes |
 
 A branch `station` nasce do ref que de fato roda em cada repositório, e não do
-default do fork — que veio do upstream e, em dois dos três, é a versão que não
-roda. A relação de fork foi preservada, então PR de volta continua funcionando.
+default do fork — que veio do upstream e, em dois dos blocos de RF, é a versão
+que não roda. A relação de fork foi preservada, então PR de volta continua funcionando.
 
 O **Rotor Manager** deixou de ser repositório consumido: as 88 linhas dele
 estão copiadas em `src/mgm8/vendor/` no Station Manager (ver o `UPSTREAM.md`
@@ -70,6 +71,8 @@ para `test-all.ps1`). `.\bootstrap.ps1 -Check` confere antes de subir.
 | **IQ Receiver — ZMQ PUB (IQ)** | **5556** |
 | **Demodulator — ZMQ PUB (bits)** | **5555** |
 | **Syncword Detector — ZMQ PUB (raw packets)** | **5558** |
+| Station Manager — ZMQ PUB (freq/doppler) | 5581 (rede interna) |
+| Frequency Synthesizer — ZMQ PUB (tune) | 5557 (rede interna) |
 | Painel do receptor USRP (profile `rx`, só 127.0.0.1) | 8091 |
 | Painel do SDR Sim (profile `rxsim`, só 127.0.0.1) | 8090 |
 
@@ -294,8 +297,15 @@ tempo real ou "próxima passagem começando agora". A geometria é própria, nã
 a da spacelab-tracking, e o painel compara com o Doppler que o Station
 Manager anuncia na 5581 (concordam em 1–5 Hz). Medido: no início de uma
 passagem (+3,3 kHz), sintonia fixa entrega 1 de 16 pacotes; sintonizando em
-portadora + Doppler, todos. Falta o `grs-frequency-synthesizer` fazer essa
-sintonia sozinho.
+portadora + Doppler, todos.
+
+Correção de Doppler automática, ponta a ponta: o `grs-frequency-synthesizer`
+(fork, branch `station`) assina a :5581, soma nominal + Doppler e publica o
+`tune` na :5557, que o simulador e o USRP seguem por padrão. Medido com a
+ISS: sinal a 0–2 Hz do centro e todos os pacotes durante a passagem, contra
+0 de 39 sem correção; parar o sintetizador no meio não derruba rotor nem
+receptor, e religado ele retoma em ~30 s. Detalhes e armadilhas em
+`docs/rx-datapath.md`, "Correção de Doppler, ponta a ponta".
 
 Os raw packets da :5558 são gravados crus no Postgres
 (`mission_control.raw_packets`) pelo `grs-packet-archiver`, append-only, com

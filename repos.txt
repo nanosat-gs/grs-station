@@ -63,6 +63,11 @@ grs-demodulator       https://github.com/nanosat-gs/grs-demodulator.git       st
 # fluxo vindo do demodulador exige, por não ter sincronismo de byte.
 grs-syncword-detector https://github.com/nanosat-gs/grs-syncword-detector.git station
 
+# `station` nasce da `master` (igual à `dev` no upstream). O upstream é só a
+# classe, sem ponto de entrada; a `station` acrescenta o `main` e corrige o
+# `freq` repetido que zerava o Doppler (ver docs/rx-datapath.md).
+grs-frequency-synthesizer https://github.com/nanosat-gs/grs-frequency-synthesizer.git station
+
 # ---------------------------------------------------------------------------
 # Blocos nossos.
 # ---------------------------------------------------------------------------

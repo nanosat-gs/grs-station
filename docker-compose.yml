@@ -232,6 +232,9 @@ services:
     environment:
       GRS_IQ_RX_CONFIG: /app/config/sdr.json
       GRS_IQ_RX_PANEL_PORT: "8091"
+      # De onde vem o `tune` quando ainda não há configuração salva. Depois do
+      # primeiro "Salvar" no painel vale o que estiver no sdr.json.
+      GRS_IQ_RX_DEFAULT_TUNE_SOURCE: tcp://grs-frequency-synthesizer:5557
     ports:
       - "5556:5556"   # ZMQ PUB — IQ em cf32_le, sem frame de tópico
       # Só em 127.0.0.1: o painel não tem autenticação e reconfigura o rádio.
@@ -347,6 +350,35 @@ services:
     networks:
       - spacelab-network
 
+  # SINTETIZADOR DE FREQUÊNCIA — fecha a correção de Doppler.
+  #
+  #   Station Manager ──:5581 [freq][doppler]──▶ sintetizador ──:5557 [tune]──▶ receptor
+  #
+  # Soma a nominal do satélite (cadastrada no TC Scheduler) e o Doppler que o
+  # Station Manager prevê a cada segundo, e manda o receptor sintonizar ali.
+  # Sem anúncios (fora de passagem), não publica nada: o receptor fica na
+  # última sintonia. Cair ou ser parado não afeta o rotor — o apontamento não
+  # passa por aqui.
+  #
+  # Fora do profile `rtlsdr`: o grs-iq-rx em C não tem `tune`.
+  grs-frequency-synthesizer:
+    build:
+      context: ./repos/grs-frequency-synthesizer
+      dockerfile: ../../docker/grs-frequency-synthesizer.Dockerfile
+    container_name: spacelab-grs-frequency-synthesizer
+    profiles: ["rx", "rxsim"]
+    command:
+      - python
+      - frequency_synthesizer.py
+      - --bind=tcp://*:5557
+      - --station-manager=tcp://station-manager:5581
+    # Sem porta publicada: só os receptores, na rede interna, assinam o tune.
+    # (tools/send_tune.py, no host, continua livre para BINDAR a 5557 quando
+    # o sintetizador estiver parado.)
+    restart: unless-stopped
+    networks:
+      - spacelab-network
+
   # SDR VIRTUAL — profile `rxsim`, e não `rx`.
   #
   # Dois profiles porque são dois mundos que não podem subir juntos: o
@@ -398,9 +430,10 @@ services:
       # chegam ao detector contra o que o simulador transmitiu.
       - --panel-port=8090
       - --packets-source=tcp://grs-syncword-detector:5558
-      # Descomente para o simulador OBEDECER ao sintetizador — é assim que a
-      # malha de sintonia fecha sem hardware.
-      # - --tune-source=tcp://grs-frequency-synthesizer:5557
+      # O simulador OBEDECE ao sintetizador: é assim que a malha de Doppler
+      # fecha sem hardware. Sem passagem rastreada, o sintetizador não publica
+      # nada e a sintonia fica onde estiver (inclusive a do painel).
+      - --tune-source=tcp://grs-frequency-synthesizer:5557
     ports:
       - "5556:5556"
       # Só em 127.0.0.1: o painel não tem autenticação e muda o simulador.
