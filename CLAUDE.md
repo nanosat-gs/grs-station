@@ -29,6 +29,7 @@ cada base.
 | **Syncword Detector** | `nanosat-gs/grs-syncword-detector` @ `station` | Biblioteca C + serviço: raw packets na 5558 |
 | **Frequency Synthesizer** | `nanosat-gs/grs-frequency-synthesizer` @ `station` | Nominal + Doppler + ajuste fino (:5581) -> `tune` na 5557 |
 | **FFT** | `nanosat-gs/grs-fft` | **Nosso.** Um por rádio: espectro e medida do desvio do sinal, que fecha o ajuste fino (AFC) |
+| **Spectrum Monitor** | `nanosat-gs/grs-spectrum-monitor` | **Nosso.** O espectro de cada rádio ao vivo, com o contexto da passagem (porta 8094, só lê) |
 | **IQ Recorder** | `nanosat-gs/grs-iq-recorder` | **Nosso.** Captura, replay e índice do fluxo de IQ |
 | **SDR Sim** | `nanosat-gs/grs-sdr-sim` | **Nosso.** SDR virtual: substituto do `grs-iq-rx` para testes |
 
@@ -67,6 +68,7 @@ para `test-all.ps1`). `.\bootstrap.ps1 -Check` confere antes de subir.
 | pgAdmin | 5050 |
 | PostgreSQL | 5432 |
 | GRS Manager — rotctld / painel | 4533 / 5590 |
+| **Spectrum Monitor** | **8094** |
 | **TC Scheduler — API de leitura** | **5591** |
 | Station Manager (ZMQ REP) | 5580 |
 | **IQ Receiver — ZMQ PUB (IQ)** | **5556** |
@@ -335,6 +337,11 @@ duas, contra 0 sem correção; estação e simulador concordam em 0–1 Hz. Pelo
 caminho: o detector de syncword pulava o pacote seguinte quando ele caía
 dentro da fatia de 255 bytes do anterior (metade dos pacotes do beacon a
 1200 baud), e a troca de IP descrita nas armadilhas.
+
+Spectrum Monitor (`http://localhost:8094`): o espectro de cada rádio ao vivo
+— zoom em resolução total na janela de busca, cascata e banda inteira —, com
+a faixa onde o sinal deveria estar, a última rajada medida e o contexto da
+passagem. Tudo do Station Manager (repasse :5583 e get_tracking :5580).
 
 Ajuste fino da sintonia (AFC) pelo bloco FFT: o Doppler previsto não vê o
 erro do oscilador do satélite (±10 ppm no TTC 2.0). O `grs-fft` de cada rádio

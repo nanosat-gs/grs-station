@@ -135,6 +135,31 @@ services:
     networks:
       - spacelab-network
 
+  # SPECTRUM MONITOR (Control Desktop, Display 4 do diagrama): o espectro de
+  # cada rádio ao vivo, com o contexto da passagem — onde o sinal deveria
+  # estar, onde o ajuste fino o mediu, e a sintonia em uso. Conhece UM
+  # endereço, o do Station Manager: o espectro vem do repasse dele (:5583) e o
+  # contexto do get_tracking (:5580). Só lê; por isso a porta é publicada
+  # como a do painel do operador. Fora de passagem e sem os profiles de
+  # recepção, mostra que não há espectro.
+  grs-spectrum-monitor:
+    build: ./repos/grs-spectrum-monitor
+    container_name: spacelab-grs-spectrum-monitor
+    command:
+      - python
+      - -m
+      - grs_spectrum_monitor.main
+      - --station-manager=tcp://station-manager:5580
+      - --spectrum-source=tcp://station-manager:5583
+      - --port=8094
+    ports:
+      - "8094:8094"   # http://localhost:8094
+    depends_on:
+      - station-manager
+    restart: unless-stopped
+    networks:
+      - spacelab-network
+
   # --- Control Server ---
   tc-scheduler:
     build: ./repos/grs-tc-scheduler

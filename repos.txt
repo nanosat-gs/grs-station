@@ -81,3 +81,7 @@ grs-sdr-sim           https://github.com/nanosat-gs/grs-sdr-sim.git           ma
 # Bloco FFT ("FFT x3" no diagrama), um por rádio: espectro e medida do desvio
 # do sinal, que o Station Manager integra no ajuste fino da sintonia.
 grs-fft               https://github.com/nanosat-gs/grs-fft.git               main
+
+# Spectrum Monitor (Control Desktop): o espectro de cada rádio ao vivo, pelo
+# repasse do Station Manager.
+grs-spectrum-monitor  https://github.com/nanosat-gs/grs-spectrum-monitor.git  main

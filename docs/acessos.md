@@ -8,6 +8,9 @@ Onde cada serviço atende depois de `docker compose up -d`. As portas são as do
 | O quê | Link | Para quê |
 |---|---|---|
 | **Painel do operador** | <http://localhost:5590> | Estado do rotor, satélites, agendamentos e o botão de atualizar TLE |
+| **Spectrum Monitor** | <http://localhost:8094> | O espectro de cada rádio ao vivo, com o ajuste fino e o contexto da passagem (só lê) |
+| Painel do simulador VHF / UHF | <http://localhost:8090> / <http://localhost:8093> | Profile `rxsim`: o rádio e o satélite simulados |
+| Painel do USRP VHF / UHF | <http://localhost:8091> / <http://localhost:8092> | Profile `rx`: endereço e configuração de cada N210 |
 | **TC Generator** | <http://localhost:5000> | Cadastrar satélites e criar telecomandos |
 | **Satélites** | <http://localhost:5000/satellites> | Cadastro com validação de NORAD ID no CelesTrak |
 | **pgAdmin** | <http://localhost:5050> | Inspecionar o banco pela interface |

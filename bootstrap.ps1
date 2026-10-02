@@ -172,7 +172,7 @@ if ($Dev) {
     # A ordem importa: a biblioteca primeiro, para que os servicos resolvam
     # contra a arvore de trabalho e nao baixem a tag publicada do GitHub.
     foreach ($name in @("spacelab-tracking", "grs-station-manager", "grs-manager", "grs-tc-scheduler",
-                        "grs-iq-recorder", "grs-sdr-sim", "grs-fft", "grs-demodulator")) {
+                        "grs-iq-recorder", "grs-sdr-sim", "grs-fft", "grs-spectrum-monitor", "grs-demodulator")) {
         $path = Join-Path $reposDir $name
         if (-not (Test-Path $path)) { Write-Warning "  pulando $name (nao clonado)"; continue }
         Write-Host "  pip install -e repos/$name"
