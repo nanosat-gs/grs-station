@@ -77,3 +77,7 @@ grs-iq-recorder       https://github.com/nanosat-gs/grs-iq-recorder.git       ma
 # Fica no profile `rxsim`, e é o que permite exercitar o caminho de recepção
 # inteiro — inclusive a sintonia — sem dongle e sem passagem de satélite.
 grs-sdr-sim           https://github.com/nanosat-gs/grs-sdr-sim.git           main
+
+# Bloco FFT ("FFT x3" no diagrama), um por rádio: espectro e medida do desvio
+# do sinal, que o Station Manager integra no ajuste fino da sintonia.
+grs-fft               https://github.com/nanosat-gs/grs-fft.git               main

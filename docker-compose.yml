@@ -193,11 +193,19 @@ services:
       # intervalo entre dois ajustes. Só rede interna: quem assina são os
       # sintetizadores, um por rádio.
       - --tuning-bind=tcp://0.0.0.0:5581
+      # Repassa o espectro dos blocos FFT (fft.vhf, fft.uhf) num endereço só,
+      # para o Spectrum Monitor do Control Desktop. Rede interna, por ora.
+      - --spectrum-bind=tcp://0.0.0.0:5583
     ports:
       - "5580:5580"   # ZMQ REP — comandos de rotor e ordens de rastreamento
     environment:
       # Mesma localização e mesmos rádios do TC Scheduler (ver o topo).
       <<: [*ground-station, *radios]
+      # Ajuste fino da sintonia: as medidas dos blocos FFT de cada rádio.
+      # Por IP fixo, e não por nome: os blocos só existem nos profiles de
+      # recepção, e um nome que não resolve foi medido calando o socket SUB
+      # inteiro. Um IP sem ninguém escutando só fica tentando, em silêncio.
+      STATION_FFT_SOURCES: ${STATION_FFT_SOURCES:-vhf=tcp://172.30.0.24:5582,uhf=tcp://172.30.0.34:5582}
     networks:
       spacelab-network:
         ipv4_address: 172.30.0.10
@@ -412,6 +420,54 @@ services:
       spacelab-network:
         ipv4_address: 172.30.0.21
 
+  # BLOCO FFT ("FFT x3" no diagrama) — um por rádio, ao lado do receptor.
+  #
+  # Assina o IQ do rádio, calcula o espectro e mede, a cada rajada do
+  # satélite, a que distância do centro ela chegou. O IQ (~1,9 MB/s) não sai
+  # daqui; ao Station Manager vão só a medida (afc.<rádio>) e o espectro
+  # reduzido (fft.<rádio>). O Station Manager integra a medida no ajuste fino
+  # e o sintetizador sintoniza em nominal + Doppler + ajuste — é o que corrige
+  # o erro do oscilador do satélite, que o Doppler previsto não vê.
+  grs-fft:
+    build: ./repos/grs-fft
+    container_name: spacelab-grs-fft
+    profiles: ["rx", "rxsim"]
+    command:
+      - python
+      - -m
+      - grs_fft.main
+      - --radio=vhf
+      - --iq-source=tcp://grs-iq-rx:5556
+      - --bind=tcp://*:5582
+      - --sample-rate=${RX_SAMPLE_RATE_HZ:-240000}
+      # A taxa define a largura que um sinal precisa ter para ser o satélite:
+      # uma portadora pura (interferência) é estreita demais e é recusada.
+      - --baud=${RX_BAUD:-1200}
+      - --window-hz=${FFT_WINDOW_HZ:-8000}
+    restart: unless-stopped
+    networks:
+      spacelab-network:
+        ipv4_address: 172.30.0.24
+
+  grs-fft-uhf:
+    build: ./repos/grs-fft
+    container_name: spacelab-grs-fft-uhf
+    profiles: ["rx", "rxsim"]
+    command:
+      - python
+      - -m
+      - grs_fft.main
+      - --radio=uhf
+      - --iq-source=tcp://grs-iq-rx-uhf:5556
+      - --bind=tcp://*:5582
+      - --sample-rate=${RX_SAMPLE_RATE_HZ:-240000}
+      - --baud=${RX_UHF_BAUD:-4800}
+      - --window-hz=${FFT_UHF_WINDOW_HZ:-8000}
+    restart: unless-stopped
+    networks:
+      spacelab-network:
+        ipv4_address: 172.30.0.34
+
   # SDR VIRTUAL — profile `rxsim`, e não `rx`.
   #
   # Dois profiles porque são dois mundos que não podem subir juntos: o
@@ -435,6 +491,9 @@ services:
       - --bind=tcp://*:5556
       - --frequency=${RX_CENTER_FREQ_HZ:-145900000}
       - --fs2-frequency=${RX_CENTER_FREQ_HZ:-145900000}
+      # Erro do oscilador do satélite, em Hz: o que o ajuste fino tem de achar.
+      # 0 = oscilador perfeito. Também muda pelo painel, sem reiniciar.
+      - --fs2-offset-hz=${SIM_FS2_OFFSET_HZ:-0}
       - --sample-rate=${RX_SAMPLE_RATE_HZ:-240000}
       - --baud=${RX_BAUD:-1200}
       - --emitters=${SIM_EMITTERS:-fs2}
@@ -590,6 +649,7 @@ services:
       - --bind=tcp://*:5556
       - --frequency=${RX_UHF_CENTER_FREQ_HZ:-468400000}
       - --fs2-frequency=${RX_UHF_CENTER_FREQ_HZ:-468400000}
+      - --fs2-offset-hz=${SIM_UHF_FS2_OFFSET_HZ:-0}
       - --sample-rate=${RX_SAMPLE_RATE_HZ:-240000}
       - --baud=${RX_UHF_BAUD:-4800}
       - --emitters=fs2
@@ -745,9 +805,10 @@ networks:
   # "uhf", sem erro nenhum. Com IP fixo, um IP nunca muda de dono.
   #
   #   172.30.0.10        station-manager
-  #   172.30.0.20-23     cadeia VHF: fonte de IQ (sim/USRP/RTL-SDR/replay,
-  #                      que nunca rodam juntos), sintetizador, demodulador, detector
-  #   172.30.0.30-33     cadeia UHF: idem
+  #   172.30.0.20-24     cadeia VHF: fonte de IQ (sim/USRP/RTL-SDR/replay,
+  #                      que nunca rodam juntos), sintetizador, demodulador,
+  #                      detector, bloco FFT
+  #   172.30.0.30-34     cadeia UHF: idem
   #   172.30.1.0/24      todo o resto, dinâmico — fora da faixa dos fixos, para
   #                      um serviço sem IP fixo nunca ocupar o de um que tem
   spacelab-network:

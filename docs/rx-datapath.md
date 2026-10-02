@@ -481,6 +481,47 @@ Dois defeitos que só a segunda cadeia mostrou:
   `docker-compose.yml`). As fontes de IQ de uma cadeia dividem o mesmo IP:
   subir duas juntas falha com erro, em vez de disputarem a porta em silêncio.
 
+## Ajuste fino da sintonia (AFC): o bloco FFT fecha a malha
+
+O Doppler é **previsto** pelo TLE: a correção acima é de malha aberta. O que
+ela não vê é o erro do oscilador do satélite (o TTC 2.0 declara cristal de
+±10 ppm: até ±1,5 kHz em VHF, ±4,7 kHz em UHF) e o erro do TLE — muito além
+dos ~200–300 Hz que o demodulador tolera.
+
+```
+grs-fft (um por rádio, ao lado do IQ) ──afc.<rádio>──▶ Station Manager ──offset.<rádio>──▶ sintetizador
+                                      ──fft.<rádio>──▶   (repasse :5583) ──▶ Spectrum Monitor (futuro)
+```
+
+- **Mede o `grs-fft`:** espectro de Welch (4096 pontos, 4 médias, 68 ms por
+  quadro), e por rajada o centro de massa do sinal dentro de uma janela de
+  ±8 kHz. Só vale com SNR ≥ 6 dB e largura de GFSK naquela taxa — portadora
+  pura e sinal largo demais são recusados.
+- **Decide o Station Manager:** integra (`afc_step`: ganho 0,5, passo ≤ 2 kHz,
+  total ≤ 8 kHz), só durante a passagem e no rádio roteado, descartando o que
+  chega logo depois de um ajuste (feito com a sintonia velha). Anuncia
+  `offset.<rádio>` a cada tick; cada passagem começa do zero.
+- **Soma o sintetizador:** `tune` = nominal + Doppler + desvio.
+- **Aprende o banco:** quando a malha converge (≥ 3 ajustes, resíduo ≤ 50 Hz),
+  o Scheduler grava o desvio em `satellite_downlinks.measured_offset_hz`, e o
+  painel o mostra com "Aplicar" — corrige a frequência no rascunho; o
+  operador salva.
+
+Medido no compose, com a ISS, uma passagem sintética e o simulador com erro
+de oscilador de +1200 Hz (beacon VHF) e −3000 Hz (dados UHF):
+
+| | VHF | UHF |
+|---|---|---|
+| só Doppler previsto | sinal a +1200 Hz, 0 de 26 pacotes | sinal a −3000 Hz, 0 de 45 |
+| com o FFT | ajuste +1194 a +1203 Hz em ~6 s, sinal a 2–7 Hz, pacotes voltam | ajuste −2971 Hz, sinal a < 30 Hz, pacotes voltam |
+| guardado no banco | +1203 Hz | −3056 Hz |
+
+**A premissa: dados equilibrados.** O centro de massa cai na portadora porque
+os dois tons pesam igual. O NGHam embaralha com a sequência CCSDS
+(`ccsds_scrambler.c` no TTC 2.0) e garante isso. O payload do simulador
+(`00 01 02 ... 3F`, 37,5% de uns) enviesava a medida em −50 Hz; o simulador
+passou a embaralhar com a mesma sequência.
+
 ## Profiles
 
 O caminho de recepção **não sobe** num `docker compose up` comum. Um profile

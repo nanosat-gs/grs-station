@@ -27,7 +27,8 @@ cada base.
 | **IQ Receiver** | `nanosat-gs/grs-iq-rx` @ `station` | Bloco SDR. Pasta `usrp/`: o USRP N210 da estação (python3-uhd, reamostra 250k→240k, painel na 8091). Raiz: o receptor C/RTL-SDR. Os dois publicam IQ `cf32_le` na 5556, em lote |
 | **Demodulator** | `nanosat-gs/grs-demodulator` @ `station` | IQ -> bits na 5555, um byte por bit |
 | **Syncword Detector** | `nanosat-gs/grs-syncword-detector` @ `station` | Biblioteca C + serviço: raw packets na 5558 |
-| **Frequency Synthesizer** | `nanosat-gs/grs-frequency-synthesizer` @ `station` | Nominal + Doppler (:5581) -> `tune` na 5557: a correção de Doppler |
+| **Frequency Synthesizer** | `nanosat-gs/grs-frequency-synthesizer` @ `station` | Nominal + Doppler + ajuste fino (:5581) -> `tune` na 5557 |
+| **FFT** | `nanosat-gs/grs-fft` | **Nosso.** Um por rádio: espectro e medida do desvio do sinal, que fecha o ajuste fino (AFC) |
 | **IQ Recorder** | `nanosat-gs/grs-iq-recorder` | **Nosso.** Captura, replay e índice do fluxo de IQ |
 | **SDR Sim** | `nanosat-gs/grs-sdr-sim` | **Nosso.** SDR virtual: substituto do `grs-iq-rx` para testes |
 
@@ -74,6 +75,8 @@ para `test-all.ps1`). `.\bootstrap.ps1 -Check` confere antes de subir.
 | Cadeia UHF (`-uhf`): IQ / bits / raw packets | 5566 / 5565 / 5568 |
 | Station Manager — ZMQ PUB (freq/doppler) | 5581 (rede interna) |
 | Frequency Synthesizer — ZMQ PUB (tune) | 5557 (rede interna) |
+| FFT — ZMQ PUB (`afc.<rádio>`, `fft.<rádio>`) | 5582 (rede interna) |
+| Station Manager — repasse do espectro (XPUB `fft.*`) | 5583 (rede interna) |
 | Painel do receptor USRP VHF / UHF (profile `rx`, só 127.0.0.1) | 8091 / 8092 |
 | Painel do SDR Sim VHF / UHF (profile `rxsim`, só 127.0.0.1) | 8090 / 8093 |
 
@@ -198,6 +201,16 @@ porque sem isso um comando ficava em `queued` para sempre. Só passagem
   detectores juntos fez o arquivador UHF gravar pacotes do VHF marcados como
   "uhf", sem erro nenhum. Mapa de IPs no fim do `docker-compose.yml`; um
   serviço novo que publica ZMQ precisa de `ipv4_address`.
+- **Ajuste fino (AFC): o bloco FFT mede, o Station Manager decide.** O
+  `grs-fft` de cada rádio mede a que distância do centro a rajada chegou; o
+  Station Manager integra (ganho 0,5, passo e faixa limitados, só durante a
+  passagem e no rádio roteado) e anuncia `offset.<rádio>`; o sintetizador
+  soma. Cada passagem começa do zero; o desvio aprendido vai ao banco
+  (`satellite_downlinks.measured_offset_hz`) só depois de convergir, e o
+  painel o sugere ("Aplicar") para corrigir a frequência cadastrada.
+- **`docker compose run` de serviço com IP fixo falha com o serviço de pé**
+  ("Address already in use"): o `run` pede o mesmo IP. Para rodar testes na
+  imagem, use `docker run` direto (fora da rede, ou com `--network` sem IP).
 - **Uma fonte de IQ por vez em cada cadeia: `rx` (USRP N210), `rtlsdr`
   (dongle, só VHF), `rxsim` (simulador), `replay` (captura).** As fontes de
   uma cadeia respondem pelo mesmo nome (`grs-iq-rx`, `grs-iq-rx-uhf`) e
@@ -323,6 +336,16 @@ caminho: o detector de syncword pulava o pacote seguinte quando ele caía
 dentro da fatia de 255 bytes do anterior (metade dos pacotes do beacon a
 1200 baud), e a troca de IP descrita nas armadilhas.
 
+Ajuste fino da sintonia (AFC) pelo bloco FFT: o Doppler previsto não vê o
+erro do oscilador do satélite (±10 ppm no TTC 2.0). O `grs-fft` de cada rádio
+mede onde a rajada chegou e o Station Manager fecha a malha. Medido com a ISS
+e oscilador de +1200 Hz (VHF) e −3000 Hz (UHF): só com o Doppler, 0 pacotes
+nas duas cadeias; com o FFT, o ajuste aprendeu +1194 a +1203 e −2971 Hz, os
+sinais voltaram para perto do centro e os pacotes voltaram. Pelo caminho: o
+payload do simulador (`00 01 02...`, sem embaralhar) enviesava a medida em
+−50 Hz — o NGHam embaralha com a sequência CCSDS, e o simulador passou a
+embaralhar também.
+
 Correção de Doppler automática, ponta a ponta: o `grs-frequency-synthesizer`
 (fork, branch `station`) assina a :5581, soma nominal + Doppler e publica o
 `tune` na :5557, que o simulador e o USRP seguem por padrão. Medido com a
@@ -339,7 +362,7 @@ enquanto o decodificador não existe, e ele poderá reprocessar o histórico.
 Próxima fatia: o decodificador NGHam (size tag, Reed-Solomon, payload,
 telemetria) — por desenho, o documento da fatia põe a decodificação fora
 dela. Ele pode ler da :5558 ao vivo ou de `mission_control.raw_packets`. O
-`grs-sdr-sim` ainda não gera quadros NGHam de verdade (manda 00 01 02 ... sem
+`grs-sdr-sim` ainda não gera quadros NGHam de verdade (manda 00 01 02 ... embaralhado com a sequência CCSDS, sem
 size tag nem RS).
 
 Em aberto: encoders/moduladores (transmissão real) — enquanto não existirem, o
