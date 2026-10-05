@@ -1,5 +1,14 @@
 # Casos de uso
 
+> **Documento histórico — proposta original (julho de 2026).** Descreve o
+> MGM8 como ele foi desenhado, antes do split em repositórios. Vários casos de uso (roteamento pelo MGM8, histórico de conexões, modos
+> manual/autônomo) não existem; o que o operador faz hoje está em
+> [painel-do-operador.md](painel-do-operador.md).
+>
+> A estação implementada está em
+> [estacao-hoje.md](estacao-hoje.md), que também lista onde o desenho
+> e a implementação divergem.
+
 ## Atores
 
 | Ator | Tipo | Descrição |

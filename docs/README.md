@@ -1,28 +1,43 @@
-# Documentação — Ground Station Manager (MGM8)
+# Documentação — Estação Terrestre SpaceLab
 
-Documentação de arquitetura, modelagem e design do **Gerenciador da Estação Terrestre** do SpaceLab.
+Documentação transversal da estação: o que só se vê com todos os blocos
+montados juntos. O que é de um bloco só (como rodar, interfaces, armadilhas)
+está no README e no `CLAUDE.md` do repositório dele — a lista está no
+[README do orquestrador](../README.md#repositórios).
 
-## Índice
+## Comece por aqui
 
 | Documento | Conteúdo |
 |-----------|----------|
-| [Visão geral da arquitetura](architecture/overview.md) | Contexto no ecossistema GRS, responsabilidades e fronteiras |
-| [Camadas da aplicação](architecture/application-layers.md) | Arquitetura em camadas, módulos e fluxos internos |
-| [Diagrama de implantação](architecture/deployment.md) | Nós físicos, rede, protocolos e portas |
-| [Casos de uso](architecture/use-cases.md) | Atores, casos de uso e diagramas UML |
-| [Modelo de banco de dados](database/README.md) | ERD, schemas, tabelas e scripts SQL |
-| [Integração com subsistemas](architecture/integration.md) | ZMQ, GRS Manager e Station Server |
-| [Controle de rotor (gpredict → GRS Manager → Station Manager → Rotor Manager)](rotor-control.md) | Arquitetura completa do pipeline, setup, configuração do gpredict e troubleshooting |
-| [Painel do operador](architecture/painel-do-operador.md) | Interface única (dashboard do Station Manager) sobre a camada de dados do GRS Manager |
+| [A estação como ela é hoje](architecture/estacao-hoje.md) | Segmentos, quem é dono de quê, uma passagem do plano ao pacote, os contratos entre repositórios |
+| [Acessos](acessos.md) | Links, portas, credenciais de desenvolvimento e APIs |
+| [Caminho de dados RX](rx-datapath.md) | Recepção: forks adotados e o porquê de cada ref, envelopes ZMQ, correção de Doppler, dois rádios, ajuste fino (AFC), profiles |
+| [Painel do operador](architecture/painel-do-operador.md) | O painel único e o que o operador comanda nele |
+| [Controle de rotor](rotor-control.md) | Pipeline gpredict → GRS Manager → Station Manager → Rotor Manager, setup e troubleshooting |
 | [Follow-up: frame e aprovação de TC](architecture/tc-followup-frame-e-aprovacao.md) | Especificação das duas peças que vão para o fork do TC Generator |
+
+## Proposta original (histórico)
+
+O desenho do **MGM8**, de julho de 2026, antes do split em repositórios. Vale
+como registro das intenções; a implementação divergiu em pontos importantes,
+listados no fim de [A estação como ela é hoje](architecture/estacao-hoje.md#onde-o-implementado-diverge-da-proposta-original).
+
+| Documento | Conteúdo |
+|-----------|----------|
+| [Visão geral da arquitetura](architecture/overview.md) | Contexto no ecossistema GRS, responsabilidades e fronteiras previstas |
+| [Camadas da aplicação](architecture/application-layers.md) | Arquitetura hexagonal — ainda vale para o Station Manager |
+| [Diagrama de componentes](architecture/components.md) | Componentes internos previstos para o MGM8 |
+| [Diagrama de implantação](architecture/deployment.md) | Nós físicos, rede, portas propostas |
+| [Integração com subsistemas](architecture/integration.md) | Formatos de mensagem propostos |
+| [Casos de uso](architecture/use-cases.md) | Atores, casos de uso e diagramas UML |
+| [Modelo de banco de dados](database/README.md) | O schema `station_manager` proposto (não implementado) |
 
 ## Referências
 
 - [Arquitetura de software GRS — SpaceLab](https://spacelab-ufsc.github.io/grs-doc/software.html)
-- Repositório MGM8: Gerenciador central de orquestração da estação terrestre
 
 ## Convenções
 
-- **Control Desktop** — Área de trabalho do operador (GRS Manager, GPredict, etc.)
-- **Control Server** — Servidor de controle (Station Manager, decoders, PostgreSQL)
-- **Station Server** — Servidor de estação (RF, SDR, rotor, demodulador)
+- **Control Desktop** — o que o operador vê: GRS Manager, Spectrum Monitor, TC Generator
+- **Control Server** — decisão e dados: TC Scheduler, Station Manager, PostgreSQL, arquivador de pacotes
+- **Station Server** — RF: receptores, sintetizadores, FFT, demoduladores, detectores, gravador

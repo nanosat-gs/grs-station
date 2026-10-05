@@ -1,5 +1,13 @@
 # Diagrama de componentes
 
+> **Documento histórico — proposta original (julho de 2026).** Descreve o
+> MGM8 como ele foi desenhado, antes do split em repositórios. Os componentes internos listados aqui não correspondem aos módulos atuais;
+> os de hoje estão no README e no `CLAUDE.md` de cada repositório.
+>
+> A estação implementada está em
+> [estacao-hoje.md](estacao-hoje.md), que também lista onde o desenho
+> e a implementação divergem.
+
 Visão UML de componentes do MGM8 e suas dependências externas.
 
 ## Componentes internos do MGM8

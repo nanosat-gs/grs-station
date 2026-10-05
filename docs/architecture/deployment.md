@@ -1,5 +1,13 @@
 # Diagrama de implantação
 
+> **Documento histórico — proposta original (julho de 2026).** Descreve o
+> MGM8 como ele foi desenhado, antes do split em repositórios. O mapa de portas abaixo era uma proposta; as portas reais estão em
+> [../acessos.md](../acessos.md) e no `docker-compose.yml`.
+>
+> A estação implementada está em
+> [estacao-hoje.md](estacao-hoje.md), que também lista onde o desenho
+> e a implementação divergem.
+
 ## Visão física
 
 A estação terrestre GRS distribui a carga em três segmentos, tipicamente em máquinas distintas na rede local da estação.

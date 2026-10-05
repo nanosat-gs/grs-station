@@ -75,7 +75,7 @@ para `test-all.ps1`). `.\bootstrap.ps1 -Check` confere antes de subir.
 | **Demodulator — ZMQ PUB (bits)** | **5555** |
 | **Syncword Detector — ZMQ PUB (raw packets)** | **5558** |
 | Cadeia UHF (`-uhf`): IQ / bits / raw packets | 5566 / 5565 / 5568 |
-| Station Manager — ZMQ PUB (freq/doppler) | 5581 (rede interna) |
+| Station Manager — ZMQ PUB (freq/doppler/offset, por rádio) | 5581 (rede interna) |
 | Frequency Synthesizer — ZMQ PUB (tune) | 5557 (rede interna) |
 | FFT — ZMQ PUB (`afc.<rádio>`, `fft.<rádio>`) | 5582 (rede interna) |
 | Station Manager — repasse do espectro (XPUB `fft.*`) | 5583 (rede interna) |
@@ -258,14 +258,18 @@ porque sem isso um comando ficava em `queued` para sempre. Só passagem
   foram escolhidas compilando cada uma. Ver `docs/rx-datapath.md`.
 - **O RTL-SDR não aceita 48 kS/s.** Os intervalos válidos são 225001–300000 e
   900001–3200000 S/s, e fora deles o driver **não dá erro** — entrega outra
-  taxa, calado. A constante `DEMOD_DEFAULT_SAMPLE_RATE` do `grs-demodulator` é
-  48 kHz, ou seja, inalcançável: ou ele ganha decimação, ou passa a trabalhar
-  na taxa do SDR. Por isso o compose usa 240 kS/s (válido, e 50 amostras por
-  símbolo exatas a 4800 baud).
-- **A frequência RX do `.env` é um EXEMPLO**, como as coordenadas `GS_*`.
-  145.9 MHz é a beacon do **FS-1**. A modulação do FS-2 está confirmada
-  (2GFSK, syncword `5D E6 2A 7E`); a frequência e o baud dependem da
-  coordenação IARU. Trocar antes de qualquer campanha de gravação real.
+  taxa, calado. O padrão do `grs-demodulator` no upstream era 48 kHz,
+  inalcançável; na branch `station` ele passou a 240000 (af60025), que é a
+  taxa do cano: válida no RTL-SDR, e 50 / 200 amostras por símbolo exatas a
+  4800 / 1200 baud. Não volte a um valor fora dessa grade.
+- **As frequências RX do `.env` são as do FS-2**, do firmware do TTC 2.0
+  (`radio_*_config.h`) e da coordenação IARU do GOLDS-UFSC: beacon em
+  145,9 MHz a 1200 baud (VHF), dados em 468,4 MHz a 4800 baud (UHF);
+  2GFSK, syncword `5D E6 2A 7E`. Durante a passagem quem sintoniza é o
+  sintetizador; o `.env` dá só a sintonia de partida e o baud de cada
+  demodulador. O que ainda não se sabe é o erro real do oscilador do FS-2
+  (±10 ppm declarados): medir nas primeiras passagens e corrigir o downlink
+  com o "Aplicar" do painel.
 - **A :5555 colide com o `grs-modulator`** (uplink, tópico `tx_data`). Subir
   RX e TX na mesma estação exige realocar uma das pontas.
 - **O card do satélite no painel atrasa até ~45 s.** Ele lê
@@ -307,9 +311,9 @@ painel (http://localhost:8090) com modo de um pacote por pedido; o
 demodulador entrega 60 de 60 pacotes íntegros na bancada, até SNR 3 dB.
 
 Em aberto na fatia, e nenhum depende de código: validar com o N210 físico
-(IP, imagem de FPGA compatível com o UHD 4.3, UDP atrás do NAT do Docker);
-o baud real do FS-2 (coordenação IARU); e a confirmação do licenciamento GPL
-antes de distribuir.
+(IP, imagem de FPGA compatível com o UHD 4.3, UDP atrás do NAT do Docker) e
+com uma passagem real; e a confirmação do licenciamento GPL antes de
+distribuir.
 
 Passagens de recepção: o TC Scheduler rastreia toda passagem, não só as com
 telecomando; o operador pula/força/desfaz passagens e cadastra a frequência
@@ -371,6 +375,12 @@ telemetria) — por desenho, o documento da fatia põe a decodificação fora
 dela. Ele pode ler da :5558 ao vivo ou de `mission_control.raw_packets`. O
 `grs-sdr-sim` ainda não gera quadros NGHam de verdade (manda 00 01 02 ... embaralhado com a sequência CCSDS, sem
 size tag nem RS).
+
+Em aberto na sintonia: corrigir o Doppler pelo NCO digital do USRP em vez
+de re-sintonizar o RF a cada segundo (risco de transiente do PLL, que o
+simulador não reproduz); testar ao vivo a recusa de interferência do bloco
+FFT; e tornar público o `grs-spectrum-monitor`, se for o caso — sem acesso à
+organização, o bootstrap falha nele.
 
 Em aberto: encoders/moduladores (transmissão real) — enquanto não existirem, o
 `sent` do fim da janela é inferência, não confirmação; parametrizar o

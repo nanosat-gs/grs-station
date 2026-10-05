@@ -1,5 +1,14 @@
 # Visão geral da arquitetura
 
+> **Documento histórico — proposta original (julho de 2026).** Descreve o
+> MGM8 como ele foi desenhado, antes do split em repositórios. O "MGM8" central que roteia tudo, os modos de operação e o GPredict como
+> fonte de predição não foram implementados assim: o agendamento é do TC
+> Scheduler, a predição é a `spacelab-tracking`, e a estação é sempre autônoma.
+>
+> A estação implementada está em
+> [estacao-hoje.md](estacao-hoje.md), que também lista onde o desenho
+> e a implementação divergem.
+
 ## Contexto no ecossistema GRS
 
 O **Ground Station Manager (MGM8)** é o middleware central no **Control Server**. Ele não controla hardware diretamente; coordina os microserviços do **Station Server** e expõe um ponto único de contato para o **GRS Manager** no **Control Desktop**.

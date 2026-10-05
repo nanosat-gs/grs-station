@@ -1,5 +1,13 @@
 # Integração com subsistemas
 
+> **Documento histórico — proposta original (julho de 2026).** Descreve o
+> MGM8 como ele foi desenhado, antes do split em repositórios. Os formatos de mensagem abaixo não são os implementados; os contratos reais
+> estão listados em "Os contratos entre repositórios".
+>
+> A estação implementada está em
+> [estacao-hoje.md](estacao-hoje.md), que também lista onde o desenho
+> e a implementação divergem.
+
 ## Mapa de integrações
 
 ```mermaid

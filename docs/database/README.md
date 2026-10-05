@@ -1,5 +1,15 @@
 # Modelo de banco de dados — Station Manager
 
+> **Documento histórico — proposta original (julho de 2026).** Descreve o
+> MGM8 como ele foi desenhado, antes do split em repositórios. O schema `station_manager` descrito aqui **não existe**, nem o TimescaleDB.
+> As tabelas reais: o schema do TC Generator (`resources/database/schema.sql`
+> do grs-tc-generator), o `mission_control` do TC Scheduler (`docs/schema-contract.md`
+> do grs-tc-scheduler) e o do gravador (`docs/schema-contract.md` do grs-iq-recorder).
+>
+> A estação implementada está em
+> [../architecture/estacao-hoje.md](../architecture/estacao-hoje.md), que também lista onde o desenho
+> e a implementação divergem.
+
 O MGM8 utiliza o PostgreSQL (com TimescaleDB no ecossistema GRS) e define o schema **`station_manager`** para dados operacionais. Dados de telemetria de alta frequência permanecem em `telemetry_stream`; metadados de missão em `mission_control`.
 
 ## Diagrama entidade-relacionamento
