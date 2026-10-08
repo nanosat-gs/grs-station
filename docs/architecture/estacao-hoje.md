@@ -70,7 +70,8 @@ flowchart LR
 | Somar nominal + Doppler + ajuste e sintonizar | **Frequency Synthesizer**, um por rádio | Mora ao lado do receptor; o Station Manager só anuncia |
 | Medir onde o sinal chegou | **FFT**, um por rádio | O IQ não atravessa a rede: só a medida e o espectro reduzido |
 | IQ → bits → raw packets | **Demodulator**, **Syncword Detector** (forks) | Blocos adotados do `spacelab-ufsc` |
-| Guardar os raw packets | **IQ Recorder** (`archive-packets`), tabela `mission_control.raw_packets` | Nada se perde enquanto o decodificador NGHam não existe |
+| Guardar os raw packets | **IQ Recorder** (`archive-packets`), tabela `mission_control.raw_packets` | O cru imutável: nada se perde, e o decodificador pode reler o histórico |
+| raw packets → telemetria | **Telemetry Decoder**, tabelas `decoded_frames` e `fs2_<tipo>`, API 5592 | Um para os dois rádios e todos os tipos; lê o banco, então cair não perde pacote |
 | Mostrar tudo ao operador | **GRS Manager** (sem banco), **Spectrum Monitor** (só lê) | Degradam em vez de falhar: uma passagem não para porque uma tela caiu |
 
 ## Uma passagem, do plano ao pacote

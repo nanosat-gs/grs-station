@@ -23,3 +23,6 @@ venv/
 *.sigmf-meta
 !tests/fixtures/**/*.sigmf-data
 !tests/fixtures/**/*.sigmf-meta
+
+# Backups do limpar-recepcao.ps1: dados do banco, não código.
+backups/

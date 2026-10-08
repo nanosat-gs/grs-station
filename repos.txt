@@ -85,3 +85,8 @@ grs-fft               https://github.com/nanosat-gs/grs-fft.git               ma
 # Spectrum Monitor (Control Desktop): o espectro de cada rádio ao vivo, pelo
 # repasse do Station Manager.
 grs-spectrum-monitor  https://github.com/nanosat-gs/grs-spectrum-monitor.git  main
+
+# Decodificador do downlink do FS-2: raw packets -> NGHam -> telemetria. Um
+# para os dois rádios e para todos os tipos de pacote (cada tipo é um arquivo
+# lá dentro, não um repositório).
+grs-telemetry-decoder https://github.com/nanosat-gs/grs-telemetry-decoder.git main

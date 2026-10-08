@@ -32,6 +32,7 @@ cada base.
 | **Spectrum Monitor** | `nanosat-gs/grs-spectrum-monitor` | **Nosso.** O espectro de cada rádio ao vivo, com o contexto da passagem (porta 8094, só lê) |
 | **IQ Recorder** | `nanosat-gs/grs-iq-recorder` | **Nosso.** Captura, replay e índice do fluxo de IQ |
 | **SDR Sim** | `nanosat-gs/grs-sdr-sim` | **Nosso.** SDR virtual: substituto do `grs-iq-rx` para testes |
+| **Telemetry Decoder** | `nanosat-gs/grs-telemetry-decoder` | **Nosso.** `raw_packets` -> NGHam -> telemetria do FS-2; API 5592. Um para os dois rádios e todos os tipos de pacote |
 
 A branch `station` nasce do ref que de fato roda em cada repositório, e não do
 default do fork — que veio do upstream e, em dois dos blocos de RF, é a versão
@@ -70,6 +71,7 @@ para `test-all.ps1`). `.\bootstrap.ps1 -Check` confere antes de subir.
 | GRS Manager — rotctld / painel | 4533 / 5590 |
 | **Spectrum Monitor** | **8094** |
 | **TC Scheduler — API de leitura** | **5591** |
+| **Telemetry Decoder — API de leitura** (só 127.0.0.1) | **5592** |
 | Station Manager (ZMQ REP) | 5580 |
 | **IQ Receiver — ZMQ PUB (IQ)** | **5556** |
 | **Demodulator — ZMQ PUB (bits)** | **5555** |
@@ -370,11 +372,21 @@ Os raw packets da :5558 são gravados crus no Postgres
 o horário de recepção em solo — nenhum pacote de passagem real se perde
 enquanto o decodificador não existe, e ele poderá reprocessar o histórico.
 
-Próxima fatia: o decodificador NGHam (size tag, Reed-Solomon, payload,
-telemetria) — por desenho, o documento da fatia põe a decodificação fora
-dela. Ele pode ler da :5558 ao vivo ou de `mission_control.raw_packets`. O
-`grs-sdr-sim` ainda não gera quadros NGHam de verdade (manda 00 01 02 ... embaralhado com a sequência CCSDS, sem
-size tag nem RS).
+Decodificação: o `grs-telemetry-decoder` lê `mission_control.raw_packets` e
+grava `decoded_frames` (todo raw packet, com status) e `fs2_<tipo>`. Serve a
+API 5592, que o painel mostra na aba Telemetria.
+
+- **Hoje decodifica o General Telemetry (`0x10`, UHF).** Os outros tipos ficam
+  guardados como `not_implemented` até ganharem decoder, sempre no mesmo serviço.
+- **O `grs-sdr-sim` UHF manda um `0x10` em quadro NGHam real**
+  (`--frame general-telemetry`); o VHF segue no padrão `00 01 02 …`.
+- **A fatia do detector passou a 258 bytes** (`RX_PACKET_BYTES`). Os 255 de antes
+  cortavam todo quadro com payload acima de 188 bytes.
+- **`tests/test_telemetry_offline_e2e.py`** faz IQ -> demodulador -> syncword ->
+  decoder sem Docker.
+
+Detalhes em `docs/rx-datapath.md`, "Decodificação", e no repositório do
+decoder.
 
 Em aberto na sintonia: corrigir o Doppler pelo NCO digital do USRP em vez
 de re-sintonizar o RF a cada segundo (risco de transiente do PLL, que o

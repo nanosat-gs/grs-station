@@ -1,0 +1,13 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "SpaceLab",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "tc_generator",
+      "Username": "admin",
+      "SSLMode": "prefer"
+    }
+  }
+}

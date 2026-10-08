@@ -79,6 +79,15 @@ services:
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
     ports:
       - "5050:80"
+    volumes:
+      # Volume COM NOME: sem ele a imagem usa um volume anônimo, e toda
+      # recriação do container (imagem `latest` nova, mudança no compose)
+      # nasce com um vazio — o servidor cadastrado, a senha salva e o
+      # histórico de consultas ficavam órfãos num volume que ninguém acha.
+      - pgadmin_data:/var/lib/pgadmin
+      # O servidor da estação já cadastrado. Só é lido na PRIMEIRA subida
+      # (volume vazio); depois disso vale o que estiver no volume.
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
     depends_on:
       postgres:
         condition: service_started
@@ -124,6 +133,10 @@ services:
       # serviço da estação que não conhece o Postgres — nem para ler. Sem esta
       # variável o painel funciona igual, só sem a parte de satélites.
       TC_SCHEDULER_API_URL: http://tc-scheduler:5591
+      # A telemetria decodificada do FS-2. Mesmo contrato: sem a variável, ou
+      # com o decodificador fora (ele só sobe nos profiles de recepção), o
+      # cartão de telemetria mostra "indisponível" e o resto do painel segue.
+      TELEMETRY_API_URL: http://grs-telemetry-decoder:5592
       # Resolvido pelo navegador do operador (os links de telecomando abrem o
       # TC Generator), e não pelo container — por isso localhost.
       TC_GENERATOR_URL: ${TC_GENERATOR_URL:-http://localhost:5000}
@@ -400,8 +413,11 @@ services:
       # Quantos bytes publicar depois do syncword. Este estágio NÃO sabe onde
       # o frame termina — o comprimento vive dentro do NGHam, e parsear NGHam
       # é trabalho do decodificador. Então publica-se uma fatia generosa e o
-      # decodificador pega o que precisa. 255 cobre o maior frame NGHam.
-      GRS_SYNCWORD_PACKET_BYTES: ${RX_PACKET_BYTES:-255}
+      # decodificador pega o que precisa. 258 = 3 de size tag + 255 do maior
+      # codeword NGHam. Era 255, "o maior frame", esquecendo o size tag: todo
+      # pacote de mais de 188 bytes chegava cortado e nunca decodificava (o
+      # grs-telemetry-decoder achou; ver test_link.py lá).
+      GRS_SYNCWORD_PACKET_BYTES: ${RX_PACKET_BYTES:-258}
       # Tolerância de erro de bit no casamento do syncword. Passagem real
       # nunca é limpa, e um detector que só aceita syncword perfeito descarta
       # frames que a correção de erro recuperaria.
@@ -678,6 +694,11 @@ services:
       - --sample-rate=${RX_SAMPLE_RATE_HZ:-240000}
       - --baud=${RX_UHF_BAUD:-4800}
       - --emitters=fs2
+      # O UHF é o enlace de dados, por onde o General Telemetry (0x10) desce:
+      # o simulador manda um 0x10 em quadro NGHam de verdade, que o
+      # grs-telemetry-decoder decodifica — a cadeia inteira, do IQ à
+      # telemetria no painel. `pattern` volta ao 00 01 02 ... só para o DSP.
+      - --frame=${SIM_UHF_FRAME:-general-telemetry}
       - --fs2-mode=${SIM_FS2_MODE:-continuous}
       - --snr-db=${SIM_SNR_DB:-20}
       # O mesmo satélite do simulador VHF: as duas portadoras saem da mesma
@@ -754,7 +775,7 @@ services:
       GRS_SYNCWORD_PACKETS_BIND: tcp://*:5558
       # O mesmo NGHam nos dois enlaces do FS-2.
       GRS_SYNCWORD_BYTES: ${RX_SYNCWORD:-5DE62A7E}
-      GRS_SYNCWORD_PACKET_BYTES: ${RX_PACKET_BYTES:-255}
+      GRS_SYNCWORD_PACKET_BYTES: ${RX_PACKET_BYTES:-258}
       GRS_SYNCWORD_MAX_ERRORS: ${RX_SYNCWORD_MAX_ERRORS:-1}
     depends_on:
       - grs-demodulator-uhf
@@ -776,6 +797,45 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - spacelab-network
+
+  # --- Decodificação -----------------------------------------------------------
+  #
+  # TELEMETRY DECODER: raw packets -> NGHam -> telemetria do FS-2.
+  #
+  #   mission_control.raw_packets ──▶ grs-telemetry-decoder ──▶ decoded_frames + fs2_<tipo>
+  #                                            └── API :5592 ──▶ painel do operador
+  #
+  # UM para os dois rádios: não assina detector nenhum, lê a tabela que os dois
+  # archivers enchem. Busca "o que ainda não foi decodificado" a cada segundo —
+  # e não "o que veio depois do último id", porque os archivers gravam em lote
+  # e um id menor pode aparecer depois de um maior. Cair não perde nada: o cru
+  # está no banco, e na volta ele decodifica o que ficou pendente.
+  #
+  # Nos mesmos profiles dos archivers: é deles que vem a tabela que ele lê.
+  # Sem ela (archiver nunca subiu contra este banco), espera e avisa.
+  #
+  #   docker compose exec grs-telemetry-decoder python -m telemetry_decoder.main latest
+  #   docker compose exec grs-telemetry-decoder python -m telemetry_decoder.main stats
+  grs-telemetry-decoder:
+    build: ./repos/grs-telemetry-decoder
+    container_name: spacelab-grs-telemetry-decoder
+    profiles: ["rx", "rtlsdr", "rxsim"]
+    ports:
+      - "127.0.0.1:5592:5592"   # API de leitura
+    environment:
+      PG_DATABASE_URL: postgresql+psycopg2://${DB_USER:-admin}:${DB_PASSWORD:-admin}@postgres:5432/${DB_NAME:-tc_generator}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5592/api/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
     networks:
       - spacelab-network
@@ -812,6 +872,8 @@ services:
 
 volumes:
   postgres_data:
+  # Configuração do pgAdmin: servidores cadastrados, senhas salvas, histórico.
+  pgadmin_data:
   tracking_data:
   # Capturas de IQ. Volume nomeado porque elas têm de sobreviver ao container
   # e não podem cair dentro da árvore de trabalho.

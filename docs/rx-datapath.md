@@ -244,8 +244,12 @@ Três frames: `[tópico "raw_packet"][cabeçalho JSON][payload empacotado]`.
 
 O payload tem tamanho **fixo** porque este estágio não sabe onde o frame
 termina: o comprimento vive dentro do NGHam, e parsear NGHam é trabalho do
-decodificador. Publica-se uma fatia generosa (255 bytes cobrem o maior frame
-NGHam) e o decodificador pega o que precisa.
+decodificador. Publica-se uma fatia generosa e o decodificador pega o que
+precisa: **258 bytes** (`GRS_SYNCWORD_PACKET_BYTES`), 3 de size tag + 255 do
+maior codeword NGHam. Até a fatia de decodificação eram 255, "o maior frame",
+esquecendo o size tag. Todo pacote com mais de 188 bytes de payload chegava
+cortado e nunca decodificaria. O `grs-telemetry-decoder` achou isso no teste
+de enlace (`tests/test_link.py` lá).
 
 `max_sync_errors` é a **tolerância** em vigor, não a distância medida —
 `syncword_detect` devolve só um índice. O nome é esse para ninguém o ler como
@@ -266,8 +270,9 @@ PUB não guarda nada: um pacote publicado sem assinante está perdido. O
 `archive-packets`) assina a :5558 e grava cada raw packet em
 `mission_control.raw_packets`, append-only: horário de recepção em solo (µs),
 `detected_at`, `detector_seq`, `bit_offset`, o payload cru, o SHA-256 dele, o
-cabeçalho JSON inteiro e a sessão do arquivador. É o cru que a decodificação
-NGHam vai ler — e poderá reler quando mudar.
+cabeçalho JSON inteiro e a sessão do arquivador. É o cru que o
+`grs-telemetry-decoder` lê, e relê quando muda de versão. Ver
+"Decodificação" no fim.
 
 Banco fora não perde pacote: o lote fica num buffer e é regravado quando o
 banco volta. Medido com o Postgres parado 15 s e o simulador transmitindo:
@@ -553,6 +558,53 @@ lotes em 5 s, contra 146 sem ele. E o publicador do replay espera a inscrição
 do demodulador (XPUB) em vez de uma pausa fixa: com a pausa, dois replays do
 mesmo arquivo deram 13 e 9 pacotes; com a espera, a gravação ao vivo e três
 replays deram 16, 16, 16 e 16.
+
+## Decodificação: raw packets -> telemetria
+
+```
+mission_control.raw_packets ─▶ grs-telemetry-decoder ─▶ decoded_frames + fs2_<tipo>
+   (os dois archivers)            NGHam -> FSat -> perfil        └─ API :5592 ─▶ painel (aba Telemetria)
+```
+
+O `grs-telemetry-decoder` fecha o caminho. Ele é um serviço só, nos mesmos profiles
+dos archivers, para os dois rádios e para todos os tipos de pacote: cada tipo é um
+arquivo lá dentro, e não um bloco.
+
+- **Lê a tabela, não a :5558.** Uma fonte para os dois rádios. Se o decoder estiver
+  fora, nada se perde. Reprocessar o histórico é o mesmo código do tempo real.
+- **"Pendente" é o que ainda não tem linha decodificada, e não "id maior que o
+  último".** Os archivers gravam em lote, e com os dois gravando juntos um id menor
+  fica visível depois de um maior. Um cursor pularia esses pacotes sem erro. Detalhe
+  em `repos/grs-telemetry-decoder/docs/schema-contract.md`.
+- **Todo raw packet ganha um status.** Tipo conhecido ainda sem decoder fica como
+  `not_implemented`, com o payload guardado.
+- **Hoje decodifica o General Telemetry (`0x10`)**, que desce pelo UHF.
+  - O simulador UHF passou a mandar um `0x10` em quadro NGHam de verdade
+    (`--frame general-telemetry`, padrão no compose). **Um pacote novo por
+    rajada:**
+    - o relógio do satélite é o da máquina;
+    - a página do log de dados conta as rajadas (1000, 1001, …);
+    - temperaturas, bateria e painéis variam numa senoide de 5 min, e a
+      corrente da bateria troca de sinal.
+
+    É o que mostra, na aba Telemetria, que cada pacote foi decodificado e não
+    é cópia do anterior. Com `--frame-timestamp` o pacote volta a ser fixo,
+    para corrida reproduzível.
+  - O VHF segue com o padrão `00 01 02 …`.
+
+O enlace foi provado contra quadros do ar:
+
+- **FS-1:** dois quadros reais, conferidos contra o `beacon.csv` do decoder oficial do
+  SpaceLab.
+- **FS-2:** um beacon real do GOLDS-UFSC. O Reed-Solomon do PyNGHam bate (0 correções).
+- **Ponta a ponta:** `tests/test_telemetry_offline_e2e.py`, do IQ com ruído à
+  telemetria, campo a campo, sem Docker.
+
+```powershell
+docker compose exec grs-telemetry-decoder python -m telemetry_decoder.main latest
+docker compose exec grs-telemetry-decoder python -m telemetry_decoder.main stats
+curl http://localhost:5592/api/telemetry/fs2/general_telemetry/latest
+```
 
 ## Colisão de porta a observar
 
