@@ -216,7 +216,9 @@ porque sem isso um comando ficava em `queued` para sempre. Só passagem
   ("Address already in use"): o `run` pede o mesmo IP. Para rodar testes na
   imagem, use `docker run` direto (fora da rede, ou com `--network` sem IP).
 - **Uma fonte de IQ por vez em cada cadeia: `rx` (USRP N210), `rtlsdr`
-  (dongle, só VHF), `rxsim` (simulador), `replay` (captura).** As fontes de
+  (dongle, só VHF), `rtltcp` (o dongle via `rtl_tcp` no host, só VHF),
+  `rxsim` (simulador), `replay` (captura).** Todas seguem o `tune`, menos o
+  replay. As fontes de
   uma cadeia respondem pelo mesmo nome (`grs-iq-rx`, `grs-iq-rx-uhf`) e
   dividem o MESMO IP fixo: subir duas juntas agora falha com "Address already
   in use", em vez de as duas disputarem a porta em silêncio. O demodulador, o detector e o gravador não
@@ -232,7 +234,12 @@ porque sem isso um comando ficava em `queued` para sempre. Só passagem
   "simplifique" pedindo 240k direto ao N210.
 - **O receptor USRP fica de pé sem o rádio**, com o motivo no painel
   (`localhost:8091`). O receptor em C, sem dongle, sai com `EXIT_FAILURE` — e
-  em Docker Desktop no Windows não há passagem de USB para a VM.
+  em Docker Desktop no Windows não há passagem de USB para a VM: ali o dongle
+  entra pelo profile `rtltcp` (`rtl_tcp -a 0.0.0.0 -p 1234` no host).
+- **O receptor em C aceita `--opção=valor` desde que ganhou `--tune-source`.**
+  Antes só `--opção valor` valia, e o compose usa a outra forma: frequência,
+  taxa e ganho eram ignorados calados (100 MHz, 2,048 MS/s). Opção
+  desconhecida agora é erro.
 - **Meça o demodulador com a fase de símbolo variando.** Um em cada quatro
   pacotes saía corrompido porque o M&M recomeçava a cada janela e tinha o
   ganho 50x fraco (corrigido no `grs-demodulator` 8b6282e). O defeito passava

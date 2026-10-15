@@ -203,8 +203,13 @@ Coisas a saber:
 - **Fim da passagem: o receptor fica na última sintonia** (até ~3 kHz da
   nominal) até a próxima passagem mandar `freq`. Entre passagens não há o que
   receber.
-- **O `grs-iq-rx` em C (RTL-SDR) não tem `tune`.** Por isso o sintetizador
-  fica fora do profile `rtlsdr`.
+- **Dongle RTL-SDR:** o `grs-iq-rx` em C segue o `tune` com
+  `--tune-source` (uma thread chama `rtlsdr_set_center_freq` com a leitura
+  em andamento, como o `rtl_tcp` faz), e o `bridge-rtltcp` do profile
+  `rtltcp` traduz cada `tune` num `SET_FREQUENCY`. Nos dois o compose aponta
+  para o sintetizador; `RTLSDR_TUNE_SOURCE=` (vazio) volta à sintonia fixa.
+  Não validado com dongle: o transiente do PLL a cada re-sintonia é o mesmo
+  risco em aberto do USRP.
 - **USRP:** o `tune_source` vem do `sdr.json` salvo pelo painel; sem arquivo
   salvo, de `GRS_IQ_RX_DEFAULT_TUNE_SOURCE` (o compose aponta para o
   sintetizador). Um "Salvar" com o campo vazio desliga o `tune` de propósito.
@@ -536,7 +541,8 @@ então nunca sobem juntas e o resto do cano não sabe qual está ali:
 | Profile | Fonte de IQ | Quando |
 |---|---|---|
 | `rx` | `grs-iq-rx-usrp` e `grs-iq-rx-usrp-uhf` — dois N210, painéis em `localhost:8091` e `:8092` | os rádios da estação |
-| `rtlsdr` | `grs-iq-rx` — o receptor em C do plano original, só VHF | quem tiver um dongle |
+| `rtlsdr` | `grs-iq-rx` — o receptor em C do plano original, só VHF, segue `tune` | quem tiver um dongle num host Linux |
+| `rtltcp` | `grs-iq-rx-rtltcp` — o mesmo dongle servido pelo `rtl_tcp` no host, só VHF, segue `tune` | dongle em Docker Desktop (Windows), que não passa USB |
 | `rxsim` | `grs-sdr-sim` e `grs-sdr-sim-uhf` — painéis em `localhost:8090` e `:8093` | sem hardware |
 | `replay` | `grs-iq-replay` — uma captura, sob demanda | regressão offline |
 

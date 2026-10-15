@@ -345,12 +345,15 @@ services:
       - --sample-rate=${RX_SAMPLE_RATE_HZ:-240000}
       # 0 = ganho automático (AGC do tuner).
       - --gain=${RX_GAIN:-0}
+      # Segue o `tune` do sintetizador (Doppler + ajuste fino), como o USRP.
+      # RTLSDR_TUNE_SOURCE= (vazio) no .env volta à sintonia fixa no -f.
+      - --tune-source=${RTLSDR_TUNE_SOURCE-tcp://grs-frequency-synthesizer:5557}
     ports:
       - "5556:5556"   # ZMQ PUB — IQ em cf32_le, sem frame de tópico
     # O dongle precisa ser passado para dentro do container. Descomente na
     # máquina que tem o hardware; em Docker Desktop no Windows isto NÃO
-    # funciona (não há passagem de USB para a VM) — ali o caminho é rodar o
-    # grs-iq-rx no host, ou usar replay.
+    # funciona (não há passagem de USB para a VM) — ali o caminho é o profile
+    # `rtltcp` (abaixo), rodar o grs-iq-rx no host, ou usar replay.
     # devices:
     #   - /dev/bus/usb:/dev/bus/usb
     #
@@ -361,6 +364,48 @@ services:
       spacelab-network:
         ipv4_address: 172.30.0.20
 
+  # DONGLE RTL-SDR VIA rtl_tcp — profile `rtltcp`. O mesmo dongle do profile
+  # `rtlsdr`, mas ele fica no HOST, servido pelo rtl_tcp, e não dentro do
+  # container. É o caminho em Docker Desktop no Windows, que não passa USB:
+  #
+  #   rtl_tcp -a 0.0.0.0 -p 1234        no host, antes de subir
+  #   docker compose --profile rtltcp up -d --build
+  #
+  # O bridge-rtltcp (imagem do grs-iq-recorder) lê o rtl_tcp, normaliza como
+  # o receptor em C, publica na :5556 e traduz cada `tune` em SET_FREQUENCY.
+  # Sem ganho por linha de comando: o do CaptureProfile (automático).
+  grs-iq-rx-rtltcp:
+    build: ./repos/grs-iq-recorder
+    container_name: spacelab-grs-iq-rx-rtltcp
+    profiles: ["rtltcp"]
+    command:
+      - python
+      - -m
+      - iq_recorder.main
+      - bridge-rtltcp
+      - --rtltcp-host=${RTLTCP_HOST:-host.docker.internal}
+      - --rtltcp-port=${RTLTCP_PORT:-1234}
+      - --frequency=${RX_CENTER_FREQ_HZ:-145900000}
+      - --sample-rate=${RX_SAMPLE_RATE_HZ:-240000}
+      - --tune-source=${RTLSDR_TUNE_SOURCE-tcp://grs-frequency-synthesizer:5557}
+    environment:
+      RECORDER_PROFILE: ${RECORDER_PROFILE:-grs-rx-fs2}
+      RECORDER_IQ_PUBLISH_ADDRESS: tcp://*:5556
+    # host.docker.internal já existe no Docker Desktop; no Linux é esta linha
+    # que o cria.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "5556:5556"   # ZMQ PUB — IQ em cf32_le, sem frame de tópico
+    # "no" pelo mesmo motivo do grs-iq-rx: sem rtl_tcp no ar o processo sai
+    # na hora, e um restart automático viraria laço de falha.
+    restart: "no"
+    networks:
+      spacelab-network:
+        ipv4_address: 172.30.0.20
+        aliases:
+          - grs-iq-rx
+
   grs-demodulator:
     build:
       context: ./repos/grs-demodulator
@@ -368,7 +413,7 @@ services:
     container_name: spacelab-grs-demodulator
     # Em todos os profiles de recepção: o demodulador é o mesmo, qualquer que
     # seja a fonte de IQ.
-    profiles: ["rx", "rtlsdr", "rxsim"]
+    profiles: ["rx", "rtlsdr", "rtltcp", "rxsim"]
     ports:
       - "5555:5555"   # ZMQ PUB — bits. Ver a colisão de porta em docs/rx-datapath.md
     environment:
@@ -400,7 +445,7 @@ services:
       context: ./repos/grs-syncword-detector
       dockerfile: ../../docker/grs-syncword-detector.Dockerfile
     container_name: spacelab-grs-syncword-detector
-    profiles: ["rx", "rtlsdr", "rxsim"]
+    profiles: ["rx", "rtlsdr", "rtltcp", "rxsim"]
     ports:
       - "5558:5558"   # ZMQ PUB — raw packets. É daqui que a fatia de decode se serve
     environment:
@@ -439,13 +484,14 @@ services:
   # última sintonia. Cair ou ser parado não afeta o rotor — o apontamento não
   # passa por aqui.
   #
-  # Fora do profile `rtlsdr`: o grs-iq-rx em C não tem `tune`.
+  # Também nos profiles do dongle: o grs-iq-rx em C e o bridge-rtltcp seguem
+  # o `tune` (--tune-source).
   grs-frequency-synthesizer:
     build:
       context: ./repos/grs-frequency-synthesizer
       dockerfile: ../../docker/grs-frequency-synthesizer.Dockerfile
     container_name: spacelab-grs-frequency-synthesizer
-    profiles: ["rx", "rxsim"]
+    profiles: ["rx", "rtlsdr", "rtltcp", "rxsim"]
     command:
       - python
       - frequency_synthesizer.py
@@ -472,7 +518,7 @@ services:
   grs-fft:
     build: ./repos/grs-fft
     container_name: spacelab-grs-fft
-    profiles: ["rx", "rxsim"]
+    profiles: ["rx", "rtlsdr", "rtltcp", "rxsim"]
     command:
       - python
       - -m
@@ -590,7 +636,7 @@ services:
   grs-iq-recorder:
     build: ./repos/grs-iq-recorder
     container_name: spacelab-grs-iq-recorder
-    profiles: ["rx", "rtlsdr", "rxsim"]
+    profiles: ["rx", "rtlsdr", "rtltcp", "rxsim"]
     environment:
       RECORDER_PROFILE: ${RECORDER_PROFILE:-grs-rx-fs2}
       # Conecta na fonte de IQ ao vivo, seja ela qual for (todas respondem
@@ -633,7 +679,7 @@ services:
   grs-packet-archiver:
     build: ./repos/grs-iq-recorder
     container_name: spacelab-grs-packet-archiver
-    profiles: ["rx", "rtlsdr", "rxsim"]
+    profiles: ["rx", "rtlsdr", "rtltcp", "rxsim"]
     command: ["python", "-m", "iq_recorder.main", "archive-packets"]
     environment:
       RECORDER_PROFILE: ${RECORDER_PROFILE:-grs-rx-fs2}
@@ -822,7 +868,7 @@ services:
   grs-telemetry-decoder:
     build: ./repos/grs-telemetry-decoder
     container_name: spacelab-grs-telemetry-decoder
-    profiles: ["rx", "rtlsdr", "rxsim"]
+    profiles: ["rx", "rtlsdr", "rtltcp", "rxsim"]
     ports:
       - "127.0.0.1:5592:5592"   # API de leitura
     environment:

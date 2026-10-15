@@ -89,7 +89,8 @@ de IQ — uma de cada vez:
 |---|---|---|
 | `rxsim` | `grs-sdr-sim` (VHF e UHF) | Exercitar a recepção inteira, inclusive a sintonia, sem rádio e sem passagem |
 | `rx` | USRP N210 (VHF e UHF) | A estação de verdade |
-| `rtlsdr` | dongle RTL-SDR (só VHF, sintonia fixa) | Bancada |
+| `rtlsdr` | dongle RTL-SDR (só VHF, segue `tune`) | Bancada, host Linux |
+| `rtltcp` | dongle RTL-SDR via `rtl_tcp` no host (só VHF, segue `tune`) | Bancada, Docker Desktop |
 | `replay` | uma captura SigMF | Regressão do demodulador e do detector |
 
 ```powershell
