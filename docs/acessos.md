@@ -64,6 +64,8 @@ volume `pgadmin_data` e sobrevive à recriação do container.
 | `5556` / `5566` | IQ Receiver VHF / UHF | ZMQ PUB — IQ `cf32_le`, sem tópico |
 | `5555` / `5565` | Demodulator VHF / UHF | ZMQ PUB — bits, um byte por bit |
 | `5558` / `5568` | Syncword Detector VHF / UHF | ZMQ PUB — `raw_packet` |
+| `5559` | IQ Receiver VHF (USRP ou simulador) | ZMQ REP — TX do uplink, só na rede interna (ver `docs/tx-datapath.md`) |
+| `5593` | GRS Uplink | ZMQ REP — o TC Scheduler pede a transmissão de um TC, só na rede interna (profiles `rx`/`rxsim`) |
 
 Só na rede interna do compose (sem porta publicada):
 

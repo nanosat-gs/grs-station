@@ -173,7 +173,7 @@ if ($Dev) {
     # contra a arvore de trabalho e nao baixem a tag publicada do GitHub.
     foreach ($name in @("spacelab-tracking", "grs-station-manager", "grs-manager", "grs-tc-scheduler",
                         "grs-iq-recorder", "grs-sdr-sim", "grs-fft", "grs-spectrum-monitor", "grs-demodulator",
-                        "grs-telemetry-decoder")) {
+                        "grs-telemetry-decoder", "grs-uplink")) {
         $path = Join-Path $reposDir $name
         if (-not (Test-Path $path)) { Write-Warning "  pulando $name (nao clonado)"; continue }
         Write-Host "  pip install -e repos/$name"

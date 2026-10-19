@@ -20,7 +20,7 @@ $failed = @()
 
 foreach ($name in @("spacelab-tracking", "grs-station-manager", "grs-manager", "grs-tc-scheduler",
                         "grs-iq-recorder", "grs-sdr-sim", "grs-fft", "grs-spectrum-monitor", "grs-demodulator",
-                        "grs-frequency-synthesizer", "grs-telemetry-decoder")) {
+                        "grs-frequency-synthesizer", "grs-telemetry-decoder", "grs-uplink")) {
     $path = Join-Path $root "repos\$name"
     if (-not (Test-Path $path)) {
         Write-Warning "pulando $name (nao clonado)"

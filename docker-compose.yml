@@ -194,6 +194,15 @@ services:
       # Idade máxima do TLE em cache, em minutos, antes de revalidar no
       # CelesTrak. Este serviço é o único que escreve e lê esse cache.
       TRACKING_CACHE_MAX_AGE_MINUTES: ${TRACKING_CACHE_MAX_AGE_MINUTES:-15}
+      # Fatia de uplink (docs/tx-datapath.md): com 1, o Scheduler pede ao
+      # grs-uplink que transmita um TC por vez, marca `sent` só com o ack do
+      # rádio, e fecha cada TC com a resposta do satélite. Com 0 (padrão), o
+      # `sent` continua inferido no fim da passagem. Exige o grs-uplink e o
+      # decoder de pé: profiles rx ou rxsim.
+      UPLINK_ENABLED: ${UPLINK_ENABLED:-0}
+      UPLINK_ADDRESS: tcp://grs-uplink:5593
+      UPLINK_PING_TIMEOUT_S: ${UPLINK_PING_TIMEOUT_S:-15}
+      UPLINK_FEEDBACK_TIMEOUT_S: ${UPLINK_FEEDBACK_TIMEOUT_S:-30}
     depends_on:
       postgres:
         condition: service_healthy
@@ -309,6 +318,12 @@ services:
       # estiver no sdr.json.
       GRS_IQ_RX_DEFAULT_TUNE_SOURCE: tcp://grs-frequency-synthesizer:5557
       GRS_IQ_RX_DEFAULT_CENTER_FREQUENCY_HZ: ${RX_CENTER_FREQ_HZ:-145900000}
+      # TX do uplink (contrato da :5559, docs/tx-datapath.md): o uplink do
+      # FS-2 sobe em 145,9 MHz, pelo MESMO N210 da VHF. O endpoint existe, mas
+      # o TX nasce DESLIGADO: só o operador liga, no painel (8091), e só com
+      # carga fantasma ou com a comutação T/R na frente do receptor. Um
+      # sdr.json salvo antes desta versão não tem tx_bind: configure no painel.
+      GRS_IQ_RX_DEFAULT_TX_BIND: tcp://*:5559
     ports:
       - "5556:5556"   # ZMQ PUB — IQ em cf32_le, sem frame de tópico
       # Só em 127.0.0.1: o painel não tem autenticação e reconfigura o rádio.
@@ -615,6 +630,19 @@ services:
       # fecha sem hardware. Sem passagem rastreada, o sintetizador não publica
       # nada e a sintonia fica onde estiver (inclusive a do painel).
       - --tune-source=tcp://grs-frequency-synthesizer:5557
+      # O SATÉLITE SIMULADO (fatia de uplink): recebe a rajada do grs-uplink
+      # pela :5559, o mesmo contrato do USRP, e responde como o OBDH2 — o pong
+      # na fila deste simulador (VHF), o 0x13 pelo PUB :5567 para o da UHF.
+      # As chaves são as de TESTE do grs-uplink (as mesmas dos dois lados).
+      - --tx-bind=tcp://*:5559
+      - --sat-keys-file=/app/uplink-keys.json
+      - --responses-bind=tcp://*:5567
+      # Residual de Doppler que o rádio de bordo ainda ouve (modelo).
+      - --uplink-tolerance-hz=${SIM_UPLINK_TOLERANCE_HZ:-1500}
+      # 80 emula o limite de leitura do TTC2 v1.0 (TODO-1). 0 = sem limite.
+      - --tc-rx-max-bytes=${SIM_TC_RX_MAX_BYTES:-0}
+    volumes:
+      - ./repos/grs-uplink/config/keys.test.json:/app/uplink-keys.json:ro
     ports:
       - "5556:5556"
       # Só em 127.0.0.1: o painel não tem autenticação e muda o simulador.
@@ -759,6 +787,10 @@ services:
       - --panel-port=8090
       - --packets-source=tcp://grs-syncword-detector-uhf:5558
       - --tune-source=tcp://grs-frequency-synthesizer-uhf:5557
+      # As respostas do satélite simulado que descem pela UHF (o TC Feedback,
+      # 0x13) vêm do simulador da VHF, que é quem recebe o uplink.
+      - --responses-source=tcp://grs-sdr-sim:5567
+      - --responses-channel=uhf
     ports:
       - "5566:5556"
       - "127.0.0.1:8093:8090"
@@ -886,6 +918,40 @@ services:
     networks:
       - spacelab-network
 
+  # UPLINK (fatia de uplink, docs/tx-datapath.md): telecomando -> SLP + HMAC
+  # -> NGHam -> GMSK -> rádio VHF pela :5559. Quem decide QUANDO é o TC
+  # Scheduler (UPLINK_ENABLED=1), que pede pela :5593; o Doppler vem do
+  # Station Manager (:5581). Cada tentativa fica em
+  # mission_control.uplink_transmissions. O rádio é o `grs-iq-rx`: o USRP no
+  # profile rx, o satélite simulado no rxsim — mesmo nome, mesmo contrato.
+  grs-uplink:
+    build: ./repos/grs-uplink
+    container_name: spacelab-grs-uplink
+    profiles: ["rx", "rxsim"]
+    environment:
+      PG_DATABASE_URL: postgresql+psycopg2://${DB_USER:-admin}:${DB_PASSWORD:-admin}@postgres:5432/${DB_NAME:-tc_generator}
+      # O indicativo da estação: vai em todo TC e volta em toda resposta.
+      # PY0SIM é um MARCADOR para o simulador; para transmitir de verdade,
+      # o indicativo licenciado da estação no .env.
+      STATION_CALLSIGN: ${STATION_CALLSIGN:-PY0SIM}
+      # Chaves de TESTE (as mesmas do satélite simulado). As de voo vêm da
+      # equipe do FS-2: monte o arquivo por volume e aponte aqui.
+      UPLINK_KEYS_FILE: ${UPLINK_KEYS_FILE:-/app/config/keys.test.json}
+      UPLINK_RADIO_ADDRESS: tcp://grs-iq-rx:5559
+      UPLINK_DOPPLER_SOURCE: tcp://station-manager:5581
+      UPLINK_DOPPLER_CHANNEL: vhf
+      UPLINK_FREQUENCY_HZ: ${UPLINK_FREQUENCY_HZ:-145900000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      tc-generator-web:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      spacelab-network:
+        # REP: IP fixo, pelo mesmo motivo dos outros (ver `networks` no fim).
+        ipv4_address: 172.30.0.40
+
   # REPLAY: republica uma captura como se fosse a fonte ao vivo.
   #
   # Serviço próprio, e não um comando no grs-iq-recorder, por um motivo
@@ -942,6 +1008,7 @@ networks:
   #                      que nunca rodam juntos), sintetizador, demodulador,
   #                      detector, bloco FFT
   #   172.30.0.30-34     cadeia UHF: idem
+  #   172.30.0.40        grs-uplink (REP :5593)
   #   172.30.1.0/24      todo o resto, dinâmico — fora da faixa dos fixos, para
   #                      um serviço sem IP fixo nunca ocupar o de um que tem
   spacelab-network:
