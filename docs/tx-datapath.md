@@ -66,16 +66,31 @@ da rajada mais `UPLINK_RADIO_TIMEOUT_S`.
 | `.env` | `UPLINK_KEYS_FILE`: as chaves de voo, montadas por volume. O padrão são as chaves de **teste** do `grs-uplink`, as mesmas do satélite simulado |
 | painel do USRP (8091) | **profile `rx`:** `tx_bind = tcp://*:5559` (já é o padrão de uma instalação nova) e **TX ligado**. Só com carga fantasma ou com comutação T/R e amplificador na frente do receptor |
 
+## Quando o uplink transmite
+
+| Janela | Doppler | Transmite? |
+|---|---|---|
+| Passagem rastreada (do AOS ao LOS) | anunciado pelo Station Manager | sim, em 145,9 MHz − Doppler |
+| Passagem rastreada, mas sem anúncio (satélite sem downlink VHF, Station Manager parado) | ausente | **não**: o TC fica na fila, com `no_doppler`, e é tentado de novo a cada `UPLINK_RETRY_S` |
+| Sessão manual (`POST /api/uplink/session`) fora de passagem | ausente | **não**, a menos que a sessão seja aberta com `"allow_no_doppler": true` |
+| Sessão manual com `"allow_no_doppler": true` | ausente | sim, **na nominal**; o `sent` registra "SEM correção de Doppler" e `doppler_waived` em `execution_logs` |
+
+A liberação existe para o simulador sem órbita e para a bancada (carga fantasma, um
+rádio parado ao lado da estação). Numa passagem ela nunca vale. Sem Doppler, a rajada
+sairia até ~3,5 kHz fora da frequência que o satélite ouve, e ainda não sabemos quanto o
+rádio de bordo tolera.
+
 ## Testar no simulador
 
 ```powershell
 # .env: UPLINK_ENABLED=1
 docker compose --profile rxsim up -d --build
 
-# 1. Um TC pelo TC Generator (http://localhost:5000): PING, ou ACTIVATE_MODULE {"module_id": 3}.
-# 2. Uma sessão de uplink manual (sem esperar uma passagem real):
+# 1. Um TC pelo TC Generator (http://localhost:5000): PING, ou ACTIVATE_MODULE com o módulo 3.
+# 2. Uma sessão de uplink manual (sem esperar uma passagem real). O simulador sem órbita
+#    não tem Doppler: a sessão precisa da liberação explícita.
 curl -X POST http://localhost:5591/api/uplink/session -H "Content-Type: application/json" `
-     -d '{"satellite": "<código do satélite>", "duration_s": 300}'
+     -d '{"satellite": "<código do satélite>", "duration_s": 300, "allow_no_doppler": true}'
 # 3. Acompanhar:
 curl http://localhost:5591/api/uplink
 ```

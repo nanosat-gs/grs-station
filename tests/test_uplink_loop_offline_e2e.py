@@ -145,11 +145,16 @@ def loop():
     server.start()
     radio = ZmqRadioTransmitter(address, timeout_s=5)
 
-    def send(command_type: str, parameters: dict, keys=KEYS, callsign=STATION):
+    def send(command_type: str, parameters: dict, keys=KEYS, callsign=STATION,
+             allow_no_doppler=True):
+        # O satélite simulado aqui não tem órbita: é a bancada, sem Doppler
+        # anunciado. Como o operador faria, a sessão libera transmitir na nominal.
         store = OneTelecommand(command_type, parameters)
         service = UplinkService(store, NghamFramer(), radio, NoDoppler(), keys,
                                 UplinkSettings(callsign, VHF, 1200, RATE))
-        reply = service.transmit(1)
+        reply = service.transmit(1, allow_no_doppler=allow_no_doppler)
+        if not reply.get("ok"):
+            return reply, store, list(responses)
         # A rajada já saiu (o ack só vem depois); o satélite processa logo em seguida.
         deadline = datetime.now() + timedelta(seconds=3)
         while station.bursts < send.count + 1 and datetime.now() < deadline:
@@ -198,6 +203,18 @@ def test_ping_sobe_o_pong_desce_pela_vhf_e_confirma(loop):
     response, transmission = response_from(outcome), transmission_from(reply)
     assert match_rule(response, transmission) == "callsign"
     assert decide(response).status == "confirmed"
+    assert reply["doppler_waived"] is True        # saiu na nominal porque a sessão liberou
+
+
+def test_sem_doppler_e_sem_liberacao_nada_sobe(loop):
+    """Fora de passagem rastreada não há Doppler: sem a liberação do operador,
+    a rajada não chega ao rádio e o satélite não ouve nada."""
+    send, station = loop
+
+    reply, store, responses = send("PING", {}, allow_no_doppler=False)
+
+    assert reply["ok"] is False and reply["error"] == "no_doppler"
+    assert store.finished == [] and responses == [] and station.bursts == 0
 
 
 def test_activate_module_com_hmac_desce_pela_uhf_e_confirma(loop):
