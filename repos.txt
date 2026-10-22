@@ -92,7 +92,5 @@ grs-spectrum-monitor  https://github.com/nanosat-gs/grs-spectrum-monitor.git  ma
 grs-telemetry-decoder https://github.com/nanosat-gs/grs-telemetry-decoder.git main
 
 # Uplink do FS-2: telecomando -> SLP + HMAC -> NGHam -> GMSK -> rádio (:5559).
-# Fatia de uplink (docs/tx-datapath.md). AINDA NÃO PUBLICADO: o repositório
-# nasceu local em repos/grs-uplink; crie nanosat-gs/grs-uplink e faça o push
-# antes de rodar o bootstrap numa máquina nova.
+# Fatia de uplink (docs/tx-datapath.md).
 grs-uplink            https://github.com/nanosat-gs/grs-uplink.git            main

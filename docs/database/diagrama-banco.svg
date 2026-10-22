@@ -1,0 +1,594 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2020" height="1250" viewBox="0 0 2020 1250">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+<path d="M0 0 L10 5 L0 10 z" fill="#475569"/></marker>
+<style>
+text{font-family:'Segoe UI',Inter,Arial,sans-serif}
+.title{font-size:28px;font-weight:700;fill:#0f172a}
+.sub{font-size:14px;fill:#475569}
+.schema{font-size:18px;font-weight:700}
+.schemasub{font-size:12.5px;fill:#475569}
+.th{font-size:15px;font-weight:700}
+.owner{font-size:10.5px;opacity:.9}
+.col{font-size:12.5px;fill:#0f172a}
+.typ{font-size:11px;fill:#64748b}
+.key{font-size:10px;font-weight:700}
+.note{font-size:12px;fill:#334155}
+.lg{font-size:12.5px;fill:#0f172a}
+</style></defs>
+<rect width="2020" height="1250" fill="#f8fafc"/>
+<text x="40" y="52" class="title">Banco de dados da estação — PostgreSQL 15 (tc_generator)</text>
+<text x="40" y="78" class="sub">Container spacelab-postgres · 2 schemas · 14 tabelas + 1 view · setas = chave estrangeira (do campo FK para a chave que ele referencia)</text>
+<rect x="30" y="110" width="990" height="1000" rx="14" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+<text x="50" y="140" class="schema" fill="#1d4ed8">schema public</text>
+<text x="190" y="140" class="schemasub">criado por schema.sql (initdb) — dono: TC Generator</text>
+<rect x="1050" y="110" width="950" height="1000" rx="14" fill="#f0fdfa" stroke="#5eead4" stroke-width="1.5"/>
+<text x="1070" y="140" class="schema" fill="#0f766e">schema mission_control</text>
+<text x="1290" y="140" class="schemasub">criado pelos serviços no boot (CREATE … IF NOT EXISTS)</text>
+<path d="M680 254.0 H690 V234.0 H710" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<circle cx="680" cy="254.0" r="3" fill="#475569"/>
+<path d="M390 274.0 H355 V234.0 H340" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<circle cx="390" cy="274.0" r="3" fill="#475569"/>
+<path d="M390 294.0 H377 V574.0 H390" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<circle cx="390" cy="294.0" r="3" fill="#475569"/>
+<path d="M340 524.0 H366 V234.0 H390" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<circle cx="340" cy="524.0" r="3" fill="#475569"/>
+<path d="M50 544.0 H40 V234.0 H50" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<circle cx="50" cy="544.0" r="3" fill="#475569"/>
+<path d="M680 594.0 H700 V234.0 H710" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<circle cx="680" cy="594.0" r="3" fill="#475569"/>
+<path d="M1000 524.0 H1012 V234.0 H1000" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<circle cx="1000" cy="524.0" r="3" fill="#475569"/>
+<path d="M1080 234.0 H1040 V234.0 H1000" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<circle cx="1080" cy="234.0" r="3" fill="#475569"/>
+<path d="M1080 404.0 H1035 V234.0 H1000" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<circle cx="1080" cy="404.0" r="3" fill="#475569"/>
+<path d="M1080 654.0 H1030 V234.0 H1000" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<circle cx="1080" cy="654.0" r="3" fill="#475569"/>
+<path d="M1080 824.0 H1025 V234.0 H1000" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<circle cx="1080" cy="824.0" r="3" fill="#475569"/>
+<path d="M1700 254.0 H1695 V234.0 H1690" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<circle cx="1700" cy="254.0" r="3" fill="#475569"/>
+<path d="M1990 814.0 H2005 V234.0 H1990" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<circle cx="1990" cy="814.0" r="3" fill="#475569"/>
+<g class="table">
+<rect x="53" y="184" width="290" height="228" rx="8" fill="#0f172a" opacity=".08"/>
+<rect x="50" y="180" width="290" height="228" rx="8" fill="#fff" stroke="#2563eb" stroke-width="1.6"/>
+<path d="M50 188 a8 8 0 0 1 8 -8 h274 a8 8 0 0 1 8 8 v32 h-290 z" fill="#2563eb"/>
+<text x="62" y="199" class="th" fill="#fff">operators</text>
+<text x="62" y="213" class="owner" fill="#fff">TC Generator</text>
+<text x="62" y="238.0" class="col" font-weight="700">id</text>
+<text x="292" y="238.0" class="typ" text-anchor="end">serial</text>
+<text x="330" y="238.0" class="key" fill="#b45309" text-anchor="end">PK</text>
+<rect x="51" y="244" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="62" y="258.0" class="col">username</text>
+<text x="292" y="258.0" class="typ" text-anchor="end">varchar(50)</text>
+<text x="330" y="258.0" class="key" fill="#64748b" text-anchor="end">UQ</text>
+<text x="62" y="278.0" class="col">email</text>
+<text x="292" y="278.0" class="typ" text-anchor="end">varchar(100)</text>
+<text x="330" y="278.0" class="key" fill="#64748b" text-anchor="end">UQ</text>
+<rect x="51" y="284" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="62" y="298.0" class="col">full_name</text>
+<text x="292" y="298.0" class="typ" text-anchor="end">varchar(100)</text>
+<text x="62" y="318.0" class="col">password_hash</text>
+<text x="292" y="318.0" class="typ" text-anchor="end">varchar(255)</text>
+<rect x="51" y="324" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="62" y="338.0" class="col">role</text>
+<text x="292" y="338.0" class="typ" text-anchor="end">admin|operator|viewer</text>
+<text x="62" y="358.0" class="col">status</text>
+<text x="292" y="358.0" class="typ" text-anchor="end">active|inactive|suspended</text>
+<rect x="51" y="364" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="62" y="378.0" class="col">created_at</text>
+<text x="292" y="378.0" class="typ" text-anchor="end">timestamptz</text>
+<text x="62" y="398.0" class="col">last_login</text>
+<text x="292" y="398.0" class="typ" text-anchor="end">timestamptz</text>
+</g>
+<g class="table">
+<rect x="393" y="184" width="290" height="308" rx="8" fill="#0f172a" opacity=".08"/>
+<rect x="390" y="180" width="290" height="308" rx="8" fill="#fff" stroke="#2563eb" stroke-width="1.6"/>
+<path d="M390 188 a8 8 0 0 1 8 -8 h274 a8 8 0 0 1 8 8 v32 h-290 z" fill="#2563eb"/>
+<text x="402" y="199" class="th" fill="#fff">telecommands</text>
+<text x="402" y="213" class="owner" fill="#fff">TC Generator</text>
+<text x="402" y="238.0" class="col" font-weight="700">id</text>
+<text x="632" y="238.0" class="typ" text-anchor="end">serial</text>
+<text x="670" y="238.0" class="key" fill="#b45309" text-anchor="end">PK</text>
+<rect x="391" y="244" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="402" y="258.0" class="col">satellite_id</text>
+<text x="632" y="258.0" class="typ" text-anchor="end">int</text>
+<text x="670" y="258.0" class="key" fill="#2563eb" text-anchor="end">FK</text>
+<text x="402" y="278.0" class="col">operator_id</text>
+<text x="632" y="278.0" class="typ" text-anchor="end">int</text>
+<text x="670" y="278.0" class="key" fill="#2563eb" text-anchor="end">FK</text>
+<rect x="391" y="284" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="402" y="298.0" class="col">scheduled_pass_id</text>
+<text x="632" y="298.0" class="typ" text-anchor="end">int</text>
+<text x="670" y="298.0" class="key" fill="#2563eb" text-anchor="end">FK</text>
+<text x="402" y="318.0" class="col">command_type</text>
+<text x="632" y="318.0" class="typ" text-anchor="end">varchar(50)</text>
+<rect x="391" y="324" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="402" y="338.0" class="col">parameters</text>
+<text x="632" y="338.0" class="typ" text-anchor="end">jsonb</text>
+<text x="402" y="358.0" class="col">metadata</text>
+<text x="632" y="358.0" class="typ" text-anchor="end">jsonb</text>
+<rect x="391" y="364" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="402" y="378.0" class="col">status</text>
+<text x="632" y="378.0" class="typ" text-anchor="end">pending|queued|sent|…</text>
+<text x="402" y="398.0" class="col">status_message</text>
+<text x="632" y="398.0" class="typ" text-anchor="end">text</text>
+<rect x="391" y="404" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="402" y="418.0" class="col">priority</text>
+<text x="632" y="418.0" class="typ" text-anchor="end">int 1–10</text>
+<text x="402" y="438.0" class="col">created_at</text>
+<text x="632" y="438.0" class="typ" text-anchor="end">timestamptz</text>
+<rect x="391" y="444" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="402" y="458.0" class="col">sent_at</text>
+<text x="632" y="458.0" class="typ" text-anchor="end">timestamptz</text>
+<text x="402" y="478.0" class="col">confirmed_at</text>
+<text x="632" y="478.0" class="typ" text-anchor="end">timestamptz</text>
+</g>
+<g class="table">
+<rect x="713" y="184" width="290" height="248" rx="8" fill="#0f172a" opacity=".08"/>
+<rect x="710" y="180" width="290" height="248" rx="8" fill="#fff" stroke="#2563eb" stroke-width="1.6"/>
+<path d="M710 188 a8 8 0 0 1 8 -8 h274 a8 8 0 0 1 8 8 v32 h-290 z" fill="#2563eb"/>
+<text x="722" y="199" class="th" fill="#fff">satellites</text>
+<text x="722" y="213" class="owner" fill="#fff">TC Generator</text>
+<text x="722" y="238.0" class="col" font-weight="700">id</text>
+<text x="952" y="238.0" class="typ" text-anchor="end">serial</text>
+<text x="990" y="238.0" class="key" fill="#b45309" text-anchor="end">PK</text>
+<rect x="711" y="244" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="722" y="258.0" class="col">name</text>
+<text x="952" y="258.0" class="typ" text-anchor="end">varchar(100)</text>
+<text x="722" y="278.0" class="col">code</text>
+<text x="952" y="278.0" class="typ" text-anchor="end">varchar(50)</text>
+<text x="990" y="278.0" class="key" fill="#64748b" text-anchor="end">UQ</text>
+<rect x="711" y="284" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="722" y="298.0" class="col">description</text>
+<text x="952" y="298.0" class="typ" text-anchor="end">text</text>
+<text x="722" y="318.0" class="col">status</text>
+<text x="952" y="318.0" class="typ" text-anchor="end">active|inactive|maint.</text>
+<rect x="711" y="324" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="722" y="338.0" class="col">norad_id</text>
+<text x="952" y="338.0" class="typ" text-anchor="end">int</text>
+<text x="990" y="338.0" class="key" fill="#64748b" text-anchor="end">UQ</text>
+<text x="722" y="358.0" class="col">tle_line1</text>
+<text x="952" y="358.0" class="typ" text-anchor="end">varchar(69)</text>
+<rect x="711" y="364" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="722" y="378.0" class="col">tle_line2</text>
+<text x="952" y="378.0" class="typ" text-anchor="end">varchar(69)</text>
+<text x="722" y="398.0" class="col">created_at</text>
+<text x="952" y="398.0" class="typ" text-anchor="end">timestamptz</text>
+<rect x="711" y="404" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="722" y="418.0" class="col">updated_at</text>
+<text x="952" y="418.0" class="typ" text-anchor="end">timestamptz</text>
+</g>
+<g class="table">
+<rect x="53" y="454" width="290" height="188" rx="8" fill="#0f172a" opacity=".08"/>
+<rect x="50" y="450" width="290" height="188" rx="8" fill="#fff" stroke="#2563eb" stroke-width="1.6"/>
+<path d="M50 458 a8 8 0 0 1 8 -8 h274 a8 8 0 0 1 8 8 v32 h-290 z" fill="#2563eb"/>
+<text x="62" y="469" class="th" fill="#fff">execution_logs</text>
+<text x="62" y="483" class="owner" fill="#fff">TC Generator</text>
+<text x="62" y="508.0" class="col" font-weight="700">id</text>
+<text x="292" y="508.0" class="typ" text-anchor="end">serial</text>
+<text x="330" y="508.0" class="key" fill="#b45309" text-anchor="end">PK</text>
+<rect x="51" y="514" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="62" y="528.0" class="col">telecommand_id</text>
+<text x="292" y="528.0" class="typ" text-anchor="end">int</text>
+<text x="330" y="528.0" class="key" fill="#2563eb" text-anchor="end">FK</text>
+<text x="62" y="548.0" class="col">created_by</text>
+<text x="292" y="548.0" class="typ" text-anchor="end">int</text>
+<text x="330" y="548.0" class="key" fill="#2563eb" text-anchor="end">FK</text>
+<rect x="51" y="554" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="62" y="568.0" class="col">status</text>
+<text x="292" y="568.0" class="typ" text-anchor="end">varchar(20)</text>
+<text x="62" y="588.0" class="col">message</text>
+<text x="292" y="588.0" class="typ" text-anchor="end">text</text>
+<rect x="51" y="594" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="62" y="608.0" class="col">details</text>
+<text x="292" y="608.0" class="typ" text-anchor="end">jsonb</text>
+<text x="62" y="628.0" class="col">created_at</text>
+<text x="292" y="628.0" class="typ" text-anchor="end">timestamptz</text>
+</g>
+<g class="table">
+<rect x="393" y="524" width="290" height="328" rx="8" fill="#0f172a" opacity=".08"/>
+<rect x="390" y="520" width="290" height="328" rx="8" fill="#fff" stroke="#2563eb" stroke-width="1.6"/>
+<path d="M390 528 a8 8 0 0 1 8 -8 h274 a8 8 0 0 1 8 8 v32 h-290 z" fill="#2563eb"/>
+<text x="402" y="539" class="th" fill="#fff">scheduled_passes</text>
+<text x="402" y="553" class="owner" fill="#fff">TC Generator</text>
+<text x="402" y="578.0" class="col" font-weight="700">id</text>
+<text x="632" y="578.0" class="typ" text-anchor="end">serial</text>
+<text x="670" y="578.0" class="key" fill="#b45309" text-anchor="end">PK</text>
+<rect x="391" y="584" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="402" y="598.0" class="col">satellite_id</text>
+<text x="632" y="598.0" class="typ" text-anchor="end">int</text>
+<text x="670" y="598.0" class="key" fill="#2563eb" text-anchor="end">FK</text>
+<text x="402" y="618.0" class="col">aos_time</text>
+<text x="632" y="618.0" class="typ" text-anchor="end">timestamptz</text>
+<rect x="391" y="624" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="402" y="638.0" class="col">los_time</text>
+<text x="632" y="638.0" class="typ" text-anchor="end">timestamptz</text>
+<text x="402" y="658.0" class="col">culmination_time</text>
+<text x="632" y="658.0" class="typ" text-anchor="end">timestamptz</text>
+<rect x="391" y="664" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="402" y="678.0" class="col">max_elevation_deg</text>
+<text x="632" y="678.0" class="typ" text-anchor="end">double</text>
+<text x="402" y="698.0" class="col">aos_azimuth_deg</text>
+<text x="632" y="698.0" class="typ" text-anchor="end">double</text>
+<rect x="391" y="704" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="402" y="718.0" class="col">los_azimuth_deg</text>
+<text x="632" y="718.0" class="typ" text-anchor="end">double</text>
+<text x="402" y="738.0" class="col">tle_epoch</text>
+<text x="632" y="738.0" class="typ" text-anchor="end">timestamptz</text>
+<rect x="391" y="744" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="402" y="758.0" class="col">data_source</text>
+<text x="632" y="758.0" class="typ" text-anchor="end">omm|tle</text>
+<text x="402" y="778.0" class="col">status</text>
+<text x="632" y="778.0" class="typ" text-anchor="end">planned|active|done|…</text>
+<rect x="391" y="784" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="402" y="798.0" class="col">status_message</text>
+<text x="632" y="798.0" class="typ" text-anchor="end">text</text>
+<text x="402" y="818.0" class="col">created_at</text>
+<text x="632" y="818.0" class="typ" text-anchor="end">timestamptz</text>
+<rect x="391" y="824" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="402" y="838.0" class="col">updated_at</text>
+<text x="632" y="838.0" class="typ" text-anchor="end">timestamptz</text>
+</g>
+<g class="table">
+<rect x="713" y="474" width="290" height="288" rx="8" fill="#0f172a" opacity=".08"/>
+<rect x="710" y="470" width="290" height="288" rx="8" fill="#fff" stroke="#2563eb" stroke-width="1.6"/>
+<path d="M710 478 a8 8 0 0 1 8 -8 h274 a8 8 0 0 1 8 8 v32 h-290 z" fill="#2563eb"/>
+<text x="722" y="489" class="th" fill="#fff">satellite_tracking_status</text>
+<text x="722" y="503" class="owner" fill="#fff">TC Generator</text>
+<text x="722" y="528.0" class="col" font-weight="700">satellite_id</text>
+<text x="952" y="528.0" class="typ" text-anchor="end">int</text>
+<text x="990" y="528.0" class="key" fill="#b45309" text-anchor="end">PK FK</text>
+<rect x="711" y="534" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="722" y="548.0" class="col">latitude_deg</text>
+<text x="952" y="548.0" class="typ" text-anchor="end">double</text>
+<text x="722" y="568.0" class="col">longitude_deg</text>
+<text x="952" y="568.0" class="typ" text-anchor="end">double</text>
+<rect x="711" y="574" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="722" y="588.0" class="col">altitude_km</text>
+<text x="952" y="588.0" class="typ" text-anchor="end">double</text>
+<text x="722" y="608.0" class="col">azimuth_deg</text>
+<text x="952" y="608.0" class="typ" text-anchor="end">double</text>
+<rect x="711" y="614" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="722" y="628.0" class="col">elevation_deg</text>
+<text x="952" y="628.0" class="typ" text-anchor="end">double</text>
+<text x="722" y="648.0" class="col">range_km</text>
+<text x="952" y="648.0" class="typ" text-anchor="end">double</text>
+<rect x="711" y="654" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="722" y="668.0" class="col">is_visible</text>
+<text x="952" y="668.0" class="typ" text-anchor="end">boolean</text>
+<text x="722" y="688.0" class="col">tle_epoch</text>
+<text x="952" y="688.0" class="typ" text-anchor="end">timestamptz</text>
+<rect x="711" y="694" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="722" y="708.0" class="col">data_source</text>
+<text x="952" y="708.0" class="typ" text-anchor="end">omm|tle</text>
+<text x="722" y="728.0" class="col">status_message</text>
+<text x="952" y="728.0" class="typ" text-anchor="end">text</text>
+<rect x="711" y="734" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="722" y="748.0" class="col">checked_at</text>
+<text x="952" y="748.0" class="typ" text-anchor="end">timestamptz</text>
+</g>
+<g class="table">
+<rect x="53" y="684" width="290" height="208" rx="8" fill="#0f172a" opacity=".08"/>
+<rect x="50" y="680" width="290" height="208" rx="8" fill="#fff" stroke="#2563eb" stroke-width="1.6" stroke-dasharray="6 4"/>
+<path d="M50 688 a8 8 0 0 1 8 -8 h274 a8 8 0 0 1 8 8 v32 h-290 z" fill="#dbeafe"/>
+<text x="62" y="699" class="th" fill="#2563eb">vw_recent_telecommands  «view»</text>
+<text x="62" y="713" class="owner" fill="#2563eb">TC Generator</text>
+<text x="62" y="738.0" class="col">id</text>
+<text x="292" y="738.0" class="typ" text-anchor="end">← telecommands</text>
+<rect x="51" y="744" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="62" y="758.0" class="col">satellite_name</text>
+<text x="292" y="758.0" class="typ" text-anchor="end">← satellites</text>
+<text x="62" y="778.0" class="col">satellite_code</text>
+<text x="292" y="778.0" class="typ" text-anchor="end">← satellites</text>
+<rect x="51" y="784" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="62" y="798.0" class="col">operator_username</text>
+<text x="292" y="798.0" class="typ" text-anchor="end">← operators</text>
+<text x="62" y="818.0" class="col">command_type</text>
+<text x="292" y="818.0" class="typ" text-anchor="end">← telecommands</text>
+<rect x="51" y="824" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="62" y="838.0" class="col">status</text>
+<text x="292" y="838.0" class="typ" text-anchor="end">← telecommands</text>
+<text x="62" y="858.0" class="col">created_at / sent_at</text>
+<text x="292" y="858.0" class="typ" text-anchor="end">← telecommands</text>
+<rect x="51" y="864" width="288" height="20" fill="#dbeafe" opacity=".45"/>
+<text x="62" y="878.0" class="col">confirmed_at</text>
+<text x="292" y="878.0" class="typ" text-anchor="end">← telecommands</text>
+</g>
+<g class="table">
+<rect x="1083" y="184" width="290" height="128" rx="8" fill="#0f172a" opacity=".08"/>
+<rect x="1080" y="180" width="290" height="128" rx="8" fill="#fff" stroke="#0f766e" stroke-width="1.6"/>
+<path d="M1080 188 a8 8 0 0 1 8 -8 h274 a8 8 0 0 1 8 8 v32 h-290 z" fill="#0f766e"/>
+<text x="1092" y="199" class="th" fill="#fff">satellite_reception</text>
+<text x="1092" y="213" class="owner" fill="#fff">TC Scheduler</text>
+<text x="1092" y="238.0" class="col" font-weight="700">satellite_id</text>
+<text x="1322" y="238.0" class="typ" text-anchor="end">int</text>
+<text x="1360" y="238.0" class="key" fill="#b45309" text-anchor="end">PK FK</text>
+<rect x="1081" y="244" width="288" height="20" fill="#ccfbf1" opacity=".45"/>
+<text x="1092" y="258.0" class="col">track_passes</text>
+<text x="1322" y="258.0" class="typ" text-anchor="end">boolean</text>
+<text x="1092" y="278.0" class="col">downlink_frequency_hz</text>
+<text x="1322" y="278.0" class="typ" text-anchor="end">double (obsoleta)</text>
+<rect x="1081" y="284" width="288" height="20" fill="#ccfbf1" opacity=".45"/>
+<text x="1092" y="298.0" class="col">updated_at</text>
+<text x="1322" y="298.0" class="typ" text-anchor="end">timestamptz</text>
+</g>
+<g class="table">
+<rect x="1083" y="334" width="290" height="228" rx="8" fill="#0f172a" opacity=".08"/>
+<rect x="1080" y="330" width="290" height="228" rx="8" fill="#fff" stroke="#0f766e" stroke-width="1.6"/>
+<path d="M1080 338 a8 8 0 0 1 8 -8 h274 a8 8 0 0 1 8 8 v32 h-290 z" fill="#0f766e"/>
+<text x="1092" y="349" class="th" fill="#fff">satellite_downlinks</text>
+<text x="1092" y="363" class="owner" fill="#fff">TC Scheduler</text>
+<text x="1092" y="388.0" class="col" font-weight="700">id</text>
+<text x="1322" y="388.0" class="typ" text-anchor="end">bigserial</text>
+<text x="1360" y="388.0" class="key" fill="#b45309" text-anchor="end">PK</text>
+<rect x="1081" y="394" width="288" height="20" fill="#ccfbf1" opacity=".45"/>
+<text x="1092" y="408.0" class="col">satellite_id</text>
+<text x="1322" y="408.0" class="typ" text-anchor="end">int</text>
+<text x="1360" y="408.0" class="key" fill="#2563eb" text-anchor="end">FK</text>
+<text x="1092" y="428.0" class="col">name</text>
+<text x="1322" y="428.0" class="typ" text-anchor="end">text</text>
+<text x="1360" y="428.0" class="key" fill="#64748b" text-anchor="end">UQ*</text>
+<rect x="1081" y="434" width="288" height="20" fill="#ccfbf1" opacity=".45"/>
+<text x="1092" y="448.0" class="col">frequency_hz</text>
+<text x="1322" y="448.0" class="typ" text-anchor="end">double</text>
+<text x="1092" y="468.0" class="col">enabled</text>
+<text x="1322" y="468.0" class="typ" text-anchor="end">boolean</text>
+<rect x="1081" y="474" width="288" height="20" fill="#ccfbf1" opacity=".45"/>
+<text x="1092" y="488.0" class="col">position</text>
+<text x="1322" y="488.0" class="typ" text-anchor="end">int</text>
+<text x="1092" y="508.0" class="col">measured_offset_hz</text>
+<text x="1322" y="508.0" class="typ" text-anchor="end">double</text>
+<rect x="1081" y="514" width="288" height="20" fill="#ccfbf1" opacity=".45"/>
+<text x="1092" y="528.0" class="col">measured_at</text>
+<text x="1322" y="528.0" class="typ" text-anchor="end">timestamptz</text>
+<text x="1092" y="548.0" class="col">updated_at</text>
+<text x="1322" y="548.0" class="typ" text-anchor="end">timestamptz</text>
+</g>
+<g class="table">
+<rect x="1083" y="584" width="290" height="148" rx="8" fill="#0f172a" opacity=".08"/>
+<rect x="1080" y="580" width="290" height="148" rx="8" fill="#fff" stroke="#0f766e" stroke-width="1.6"/>
+<path d="M1080 588 a8 8 0 0 1 8 -8 h274 a8 8 0 0 1 8 8 v32 h-290 z" fill="#0f766e"/>
+<text x="1092" y="599" class="th" fill="#fff">pass_decisions</text>
+<text x="1092" y="613" class="owner" fill="#fff">TC Scheduler</text>
+<text x="1092" y="638.0" class="col" font-weight="700">id</text>
+<text x="1322" y="638.0" class="typ" text-anchor="end">bigserial</text>
+<text x="1360" y="638.0" class="key" fill="#b45309" text-anchor="end">PK</text>
+<rect x="1081" y="644" width="288" height="20" fill="#ccfbf1" opacity=".45"/>
+<text x="1092" y="658.0" class="col">satellite_id</text>
+<text x="1322" y="658.0" class="typ" text-anchor="end">int</text>
+<text x="1360" y="658.0" class="key" fill="#2563eb" text-anchor="end">FK</text>
+<text x="1092" y="678.0" class="col">predicted_aos</text>
+<text x="1322" y="678.0" class="typ" text-anchor="end">timestamptz</text>
+<rect x="1081" y="684" width="288" height="20" fill="#ccfbf1" opacity=".45"/>
+<text x="1092" y="698.0" class="col">decision</text>
+<text x="1322" y="698.0" class="typ" text-anchor="end">skip|force</text>
+<text x="1092" y="718.0" class="col">created_at</text>
+<text x="1322" y="718.0" class="typ" text-anchor="end">timestamptz</text>
+</g>
+<g class="table">
+<rect x="1083" y="754" width="290" height="308" rx="8" fill="#0f172a" opacity=".08"/>
+<rect x="1080" y="750" width="290" height="308" rx="8" fill="#fff" stroke="#0f766e" stroke-width="1.6"/>
+<path d="M1080 758 a8 8 0 0 1 8 -8 h274 a8 8 0 0 1 8 8 v32 h-290 z" fill="#0f766e"/>
+<text x="1092" y="769" class="th" fill="#fff">pass_predictions</text>
+<text x="1092" y="783" class="owner" fill="#fff">TC Scheduler</text>
+<text x="1092" y="808.0" class="col" font-weight="700">id</text>
+<text x="1322" y="808.0" class="typ" text-anchor="end">bigserial</text>
+<text x="1360" y="808.0" class="key" fill="#b45309" text-anchor="end">PK</text>
+<rect x="1081" y="814" width="288" height="20" fill="#ccfbf1" opacity=".45"/>
+<text x="1092" y="828.0" class="col">satellite_id</text>
+<text x="1322" y="828.0" class="typ" text-anchor="end">int</text>
+<text x="1360" y="828.0" class="key" fill="#2563eb" text-anchor="end">FK</text>
+<text x="1092" y="848.0" class="col">aos_time</text>
+<text x="1322" y="848.0" class="typ" text-anchor="end">timestamptz</text>
+<rect x="1081" y="854" width="288" height="20" fill="#ccfbf1" opacity=".45"/>
+<text x="1092" y="868.0" class="col">los_time</text>
+<text x="1322" y="868.0" class="typ" text-anchor="end">timestamptz</text>
+<text x="1092" y="888.0" class="col">culmination_time</text>
+<text x="1322" y="888.0" class="typ" text-anchor="end">timestamptz</text>
+<rect x="1081" y="894" width="288" height="20" fill="#ccfbf1" opacity=".45"/>
+<text x="1092" y="908.0" class="col">max_elevation_deg</text>
+<text x="1322" y="908.0" class="typ" text-anchor="end">double</text>
+<text x="1092" y="928.0" class="col">outcome</text>
+<text x="1322" y="928.0" class="typ" text-anchor="end">planned|conflict|…</text>
+<rect x="1081" y="934" width="288" height="20" fill="#ccfbf1" opacity=".45"/>
+<text x="1092" y="948.0" class="col">lost_to_satellite_id</text>
+<text x="1322" y="948.0" class="typ" text-anchor="end">int (sem FK)</text>
+<text x="1092" y="968.0" class="col">lost_to_aos_time</text>
+<text x="1322" y="968.0" class="typ" text-anchor="end">timestamptz</text>
+<rect x="1081" y="974" width="288" height="20" fill="#ccfbf1" opacity=".45"/>
+<text x="1092" y="988.0" class="col">forced</text>
+<text x="1322" y="988.0" class="typ" text-anchor="end">boolean</text>
+<text x="1092" y="1008.0" class="col">carries_telecommands</text>
+<text x="1322" y="1008.0" class="typ" text-anchor="end">boolean</text>
+<rect x="1081" y="1014" width="288" height="20" fill="#ccfbf1" opacity=".45"/>
+<text x="1092" y="1028.0" class="col">telecommand_count</text>
+<text x="1322" y="1028.0" class="typ" text-anchor="end">int</text>
+<text x="1092" y="1048.0" class="col">computed_at</text>
+<text x="1322" y="1048.0" class="typ" text-anchor="end">timestamptz</text>
+</g>
+<g class="table">
+<rect x="1403" y="184" width="290" height="308" rx="8" fill="#0f172a" opacity=".08"/>
+<rect x="1400" y="180" width="290" height="308" rx="8" fill="#fff" stroke="#c2410c" stroke-width="1.6"/>
+<path d="M1400 188 a8 8 0 0 1 8 -8 h274 a8 8 0 0 1 8 8 v32 h-290 z" fill="#c2410c"/>
+<text x="1412" y="199" class="th" fill="#fff">raw_packets</text>
+<text x="1412" y="213" class="owner" fill="#fff">IQ Recorder / Packet Archiver</text>
+<text x="1412" y="238.0" class="col" font-weight="700">id</text>
+<text x="1642" y="238.0" class="typ" text-anchor="end">bigserial</text>
+<text x="1680" y="238.0" class="key" fill="#b45309" text-anchor="end">PK</text>
+<rect x="1401" y="244" width="288" height="20" fill="#ffedd5" opacity=".45"/>
+<text x="1412" y="258.0" class="col">received_at</text>
+<text x="1642" y="258.0" class="typ" text-anchor="end">timestamptz</text>
+<text x="1412" y="278.0" class="col">detected_at</text>
+<text x="1642" y="278.0" class="typ" text-anchor="end">timestamptz</text>
+<rect x="1401" y="284" width="288" height="20" fill="#ffedd5" opacity=".45"/>
+<text x="1412" y="298.0" class="col">detector_seq</text>
+<text x="1642" y="298.0" class="typ" text-anchor="end">bigint</text>
+<text x="1412" y="318.0" class="col">bit_offset</text>
+<text x="1642" y="318.0" class="typ" text-anchor="end">bigint</text>
+<rect x="1401" y="324" width="288" height="20" fill="#ffedd5" opacity=".45"/>
+<text x="1412" y="338.0" class="col">syncword</text>
+<text x="1642" y="338.0" class="typ" text-anchor="end">text</text>
+<text x="1412" y="358.0" class="col">max_sync_errors</text>
+<text x="1642" y="358.0" class="typ" text-anchor="end">int</text>
+<rect x="1401" y="364" width="288" height="20" fill="#ffedd5" opacity=".45"/>
+<text x="1412" y="378.0" class="col">payload</text>
+<text x="1642" y="378.0" class="typ" text-anchor="end">bytea</text>
+<text x="1412" y="398.0" class="col">payload_sha256</text>
+<text x="1642" y="398.0" class="typ" text-anchor="end">text</text>
+<rect x="1401" y="404" width="288" height="20" fill="#ffedd5" opacity=".45"/>
+<text x="1412" y="418.0" class="col">header</text>
+<text x="1642" y="418.0" class="typ" text-anchor="end">jsonb</text>
+<text x="1412" y="438.0" class="col">archiver_run</text>
+<text x="1642" y="438.0" class="typ" text-anchor="end">uuid</text>
+<rect x="1401" y="444" width="288" height="20" fill="#ffedd5" opacity=".45"/>
+<text x="1412" y="458.0" class="col">archived_at</text>
+<text x="1642" y="458.0" class="typ" text-anchor="end">timestamptz</text>
+<text x="1412" y="478.0" class="col">radio</text>
+<text x="1642" y="478.0" class="typ" text-anchor="end">text</text>
+</g>
+<g class="table">
+<rect x="1403" y="544" width="290" height="268" rx="8" fill="#0f172a" opacity=".08"/>
+<rect x="1400" y="540" width="290" height="268" rx="8" fill="#fff" stroke="#c2410c" stroke-width="1.6"/>
+<path d="M1400 548 a8 8 0 0 1 8 -8 h274 a8 8 0 0 1 8 8 v32 h-290 z" fill="#c2410c"/>
+<text x="1412" y="559" class="th" fill="#fff">iq_captures</text>
+<text x="1412" y="573" class="owner" fill="#fff">IQ Recorder / Packet Archiver</text>
+<text x="1412" y="598.0" class="col" font-weight="700">capture_id</text>
+<text x="1642" y="598.0" class="typ" text-anchor="end">text</text>
+<text x="1680" y="598.0" class="key" fill="#b45309" text-anchor="end">PK</text>
+<rect x="1401" y="604" width="288" height="20" fill="#ffedd5" opacity=".45"/>
+<text x="1412" y="618.0" class="col">profile_name</text>
+<text x="1642" y="618.0" class="typ" text-anchor="end">text</text>
+<text x="1412" y="638.0" class="col">center_frequency_hz</text>
+<text x="1642" y="638.0" class="typ" text-anchor="end">double</text>
+<rect x="1401" y="644" width="288" height="20" fill="#ffedd5" opacity=".45"/>
+<text x="1412" y="658.0" class="col">sample_rate_hz</text>
+<text x="1642" y="658.0" class="typ" text-anchor="end">double</text>
+<text x="1412" y="678.0" class="col">datatype</text>
+<text x="1642" y="678.0" class="typ" text-anchor="end">text</text>
+<rect x="1401" y="684" width="288" height="20" fill="#ffedd5" opacity=".45"/>
+<text x="1412" y="698.0" class="col">started_at</text>
+<text x="1642" y="698.0" class="typ" text-anchor="end">timestamptz</text>
+<text x="1412" y="718.0" class="col">ended_at</text>
+<text x="1642" y="718.0" class="typ" text-anchor="end">timestamptz</text>
+<rect x="1401" y="724" width="288" height="20" fill="#ffedd5" opacity=".45"/>
+<text x="1412" y="738.0" class="col">sample_count</text>
+<text x="1642" y="738.0" class="typ" text-anchor="end">bigint</text>
+<text x="1412" y="758.0" class="col">sha512</text>
+<text x="1642" y="758.0" class="typ" text-anchor="end">text</text>
+<rect x="1401" y="764" width="288" height="20" fill="#ffedd5" opacity=".45"/>
+<text x="1412" y="778.0" class="col">data_path</text>
+<text x="1642" y="778.0" class="typ" text-anchor="end">text</text>
+<text x="1412" y="798.0" class="col">indexed_at</text>
+<text x="1642" y="798.0" class="typ" text-anchor="end">timestamptz</text>
+</g>
+<g class="table">
+<rect x="1703" y="184" width="290" height="388" rx="8" fill="#0f172a" opacity=".08"/>
+<rect x="1700" y="180" width="290" height="388" rx="8" fill="#fff" stroke="#7c3aed" stroke-width="1.6"/>
+<path d="M1700 188 a8 8 0 0 1 8 -8 h274 a8 8 0 0 1 8 8 v32 h-290 z" fill="#7c3aed"/>
+<text x="1712" y="199" class="th" fill="#fff">decoded_frames</text>
+<text x="1712" y="213" class="owner" fill="#fff">Telemetry Decoder</text>
+<text x="1712" y="238.0" class="col" font-weight="700">id</text>
+<text x="1942" y="238.0" class="typ" text-anchor="end">bigserial</text>
+<text x="1980" y="238.0" class="key" fill="#b45309" text-anchor="end">PK</text>
+<rect x="1701" y="244" width="288" height="20" fill="#ede9fe" opacity=".45"/>
+<text x="1712" y="258.0" class="col">raw_packet_id</text>
+<text x="1942" y="258.0" class="typ" text-anchor="end">bigint</text>
+<text x="1980" y="258.0" class="key" fill="#2563eb" text-anchor="end">FK UQ*</text>
+<text x="1712" y="278.0" class="col">decoder_version</text>
+<text x="1942" y="278.0" class="typ" text-anchor="end">text</text>
+<text x="1980" y="278.0" class="key" fill="#64748b" text-anchor="end">UQ*</text>
+<rect x="1701" y="284" width="288" height="20" fill="#ede9fe" opacity=".45"/>
+<text x="1712" y="298.0" class="col">radio</text>
+<text x="1942" y="298.0" class="typ" text-anchor="end">text</text>
+<text x="1712" y="318.0" class="col">received_at</text>
+<text x="1942" y="318.0" class="typ" text-anchor="end">timestamptz</text>
+<rect x="1701" y="324" width="288" height="20" fill="#ede9fe" opacity=".45"/>
+<text x="1712" y="338.0" class="col">status</text>
+<text x="1942" y="338.0" class="typ" text-anchor="end">text</text>
+<text x="1712" y="358.0" class="col">ngham_error</text>
+<text x="1942" y="358.0" class="typ" text-anchor="end">text</text>
+<rect x="1701" y="364" width="288" height="20" fill="#ede9fe" opacity=".45"/>
+<text x="1712" y="378.0" class="col">rs_errors</text>
+<text x="1942" y="378.0" class="typ" text-anchor="end">int</text>
+<text x="1712" y="398.0" class="col">frame_length</text>
+<text x="1942" y="398.0" class="typ" text-anchor="end">int</text>
+<rect x="1701" y="404" width="288" height="20" fill="#ede9fe" opacity=".45"/>
+<text x="1712" y="418.0" class="col">ngham_payload</text>
+<text x="1942" y="418.0" class="typ" text-anchor="end">bytea</text>
+<text x="1712" y="438.0" class="col">pkt_id</text>
+<text x="1942" y="438.0" class="typ" text-anchor="end">smallint</text>
+<rect x="1701" y="444" width="288" height="20" fill="#ede9fe" opacity=".45"/>
+<text x="1712" y="458.0" class="col">pkt_type</text>
+<text x="1942" y="458.0" class="typ" text-anchor="end">text</text>
+<text x="1712" y="478.0" class="col">callsign</text>
+<text x="1942" y="478.0" class="typ" text-anchor="end">text</text>
+<rect x="1701" y="484" width="288" height="20" fill="#ede9fe" opacity=".45"/>
+<text x="1712" y="498.0" class="col">sat_profile</text>
+<text x="1942" y="498.0" class="typ" text-anchor="end">text</text>
+<text x="1712" y="518.0" class="col">radio_mismatch</text>
+<text x="1942" y="518.0" class="typ" text-anchor="end">boolean</text>
+<rect x="1701" y="524" width="288" height="20" fill="#ede9fe" opacity=".45"/>
+<text x="1712" y="538.0" class="col">detail</text>
+<text x="1942" y="538.0" class="typ" text-anchor="end">text</text>
+<text x="1712" y="558.0" class="col">decoded_at</text>
+<text x="1942" y="558.0" class="typ" text-anchor="end">timestamptz</text>
+</g>
+<g class="table">
+<rect x="1703" y="764" width="290" height="228" rx="8" fill="#0f172a" opacity=".08"/>
+<rect x="1700" y="760" width="290" height="228" rx="8" fill="#fff" stroke="#7c3aed" stroke-width="1.6"/>
+<path d="M1700 768 a8 8 0 0 1 8 -8 h274 a8 8 0 0 1 8 8 v32 h-290 z" fill="#7c3aed"/>
+<text x="1712" y="779" class="th" fill="#fff">fs2_general_telemetry</text>
+<text x="1712" y="793" class="owner" fill="#fff">Telemetry Decoder</text>
+<text x="1712" y="818.0" class="col" font-weight="700">decoded_frame_id</text>
+<text x="1942" y="818.0" class="typ" text-anchor="end">bigint</text>
+<text x="1980" y="818.0" class="key" fill="#b45309" text-anchor="end">PK FK</text>
+<rect x="1701" y="824" width="288" height="20" fill="#ede9fe" opacity=".45"/>
+<text x="1712" y="838.0" class="col">raw_packet_id</text>
+<text x="1942" y="838.0" class="typ" text-anchor="end">bigint</text>
+<text x="1712" y="858.0" class="col">decoder_version</text>
+<text x="1942" y="858.0" class="typ" text-anchor="end">text</text>
+<rect x="1701" y="864" width="288" height="20" fill="#ede9fe" opacity=".45"/>
+<text x="1712" y="878.0" class="col">received_at</text>
+<text x="1942" y="878.0" class="typ" text-anchor="end">timestamptz</text>
+<text x="1712" y="898.0" class="col">radio</text>
+<text x="1942" y="898.0" class="typ" text-anchor="end">text</text>
+<rect x="1701" y="904" width="288" height="20" fill="#ede9fe" opacity=".45"/>
+<text x="1712" y="918.0" class="col">sat_profile</text>
+<text x="1942" y="918.0" class="typ" text-anchor="end">text</text>
+<text x="1712" y="938.0" class="col">sat_time</text>
+<text x="1942" y="938.0" class="typ" text-anchor="end">timestamptz</text>
+<rect x="1701" y="944" width="288" height="20" fill="#ede9fe" opacity=".45"/>
+<text x="1712" y="958.0" class="col">layout</text>
+<text x="1942" y="958.0" class="typ" text-anchor="end">text</text>
+<text x="1712" y="978.0" class="col" font-style="italic">+ 50 campos: obdh_*, eps_*, ttc_*…</text>
+<text x="1942" y="978.0" class="typ" text-anchor="end"></text>
+</g>
+<rect x="710" y="790" width="290" height="190" rx="8" fill="#fff" stroke="#64748b" stroke-dasharray="6 4"/>
+<text x="722" y="812" class="th" fill="#334155">Funções e triggers</text>
+<text x="722" y="838" class="note" font-weight="700">update_modified_column()</text>
+<text x="722" y="857" class="note">  trigger BEFORE UPDATE em satellites</text>
+<text x="722" y="876" class="note">  trigger BEFORE UPDATE em scheduled_passes</text>
+<text x="722" y="895" class="note">  → atualiza updated_at</text>
+<text x="722" y="914" class="note" font-weight="700">get_satellite_command_stats(days)</text>
+<text x="722" y="933" class="note">  total / pending / sent / confirmed /</text>
+<text x="722" y="952" class="note">  failed por satélite</text>
+<text x="1400" y="840" class="note" font-weight="700">Sem FK: iq_captures indexa as gravações SigMF</text>
+<text x="1400" y="858" class="note">em disco; liga-se às passagens só por horário.</text>
+<text x="1400" y="1010" class="note" font-weight="700">Fluxo de recepção</text>
+<text x="1400" y="1030" class="note">rádio → raw_packets → decoded_frames → fs2_&lt;tipo&gt;</text>
+<text x="40" y="1140" class="lg" font-weight="700">Legenda</text>
+<rect x="120" y="1127" width="18" height="16" rx="3" fill="#2563eb"/>
+<text x="146" y="1140" class="lg">TC Generator</text>
+<rect x="290" y="1127" width="18" height="16" rx="3" fill="#0f766e"/>
+<text x="316" y="1140" class="lg">TC Scheduler</text>
+<rect x="460" y="1127" width="18" height="16" rx="3" fill="#c2410c"/>
+<text x="486" y="1140" class="lg">IQ Recorder / Packet Archiver</text>
+<rect x="720" y="1127" width="18" height="16" rx="3" fill="#7c3aed"/>
+<text x="746" y="1140" class="lg">Telemetry Decoder</text>
+<text x="940" y="1140" class="lg"><tspan fill="#b45309" font-weight="700">PK</tspan> chave primária   <tspan fill="#2563eb" font-weight="700">FK</tspan> chave estrangeira   <tspan fill="#64748b" font-weight="700">UQ</tspan> única   <tspan fill="#64748b" font-weight="700">UQ*</tspan> única composta</text>
+<text x="40" y="1170" class="note">Cores = serviço que cria e escreve a tabela. scheduled_passes e telecommands.scheduled_pass_id são preenchidos pelo TC Scheduler, mas o schema é do TC Generator. Tabelas fs2_&lt;tipo&gt; nascem uma por decoder — hoje só fs2_general_telemetry.</text>
+<text x="40" y="1190" class="note">Fonte: grs-tc-generator/resources/database/schema.sql, grs-tc-scheduler/db.py, grs-iq-recorder/adapters/postgres_*.py, grs-telemetry-decoder/adapters/postgres_store.py</text>
+</svg>
