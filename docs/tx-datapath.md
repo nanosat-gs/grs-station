@@ -74,6 +74,7 @@ da rajada mais `UPLINK_RADIO_TIMEOUT_S`.
 | Passagem rastreada, mas sem anúncio (satélite sem downlink VHF, Station Manager parado) | ausente | **não**: o TC fica na fila, com `no_doppler`, e é tentado de novo a cada `UPLINK_RETRY_S` |
 | Sessão manual (`POST /api/uplink/session`) fora de passagem | ausente | **não**, a menos que a sessão seja aberta com `"allow_no_doppler": true` |
 | Sessão manual com `"allow_no_doppler": true` | ausente | sim, **na nominal**; o `sent` registra "SEM correção de Doppler" e `doppler_waived` em `execution_logs` |
+| Sessão manual de **outro** satélite durante uma passagem em andamento | o da passagem (errado para ele) | **não**: espera o LOS. A antena aponta para o satélite da passagem, e o `doppler.vhf` é por rádio, não por satélite |
 
 A liberação existe para o simulador sem órbita e para a bancada (carga fantasma, um
 rádio parado ao lado da estação). Numa passagem ela nunca vale. Sem Doppler, a rajada
