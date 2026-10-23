@@ -941,6 +941,10 @@ services:
       UPLINK_DOPPLER_SOURCE: tcp://station-manager:5581
       UPLINK_DOPPLER_CHANNEL: vhf
       UPLINK_FREQUENCY_HZ: ${UPLINK_FREQUENCY_HZ:-145900000}
+      # Só estes satélites recebem TC (o único perfil de uplink é o FS-2).
+      # Vazio trataria QUALQUER satélite como FS-2: um TC para o FloripaSat-1
+      # sairia no formato e com as chaves do FS-2.
+      UPLINK_SATELLITES: ${UPLINK_SATELLITES:-SAT-COM-001}
     depends_on:
       postgres:
         condition: service_healthy
