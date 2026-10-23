@@ -944,7 +944,7 @@ services:
       # Só estes satélites recebem TC (o único perfil de uplink é o FS-2).
       # Vazio trataria QUALQUER satélite como FS-2: um TC para o FloripaSat-1
       # sairia no formato e com as chaves do FS-2.
-      UPLINK_SATELLITES: ${UPLINK_SATELLITES:-SAT-COM-001}
+      UPLINK_SATELLITES: ${UPLINK_SATELLITES:-FS-2}
     depends_on:
       postgres:
         condition: service_healthy

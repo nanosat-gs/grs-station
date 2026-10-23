@@ -64,7 +64,7 @@ da rajada mais `UPLINK_RADIO_TIMEOUT_S`.
 | `.env` | `UPLINK_ENABLED=1`. Sem isso, o Scheduler mantém o `sent` inferido no fim da passagem, como antes da fatia |
 | `.env` | `STATION_CALLSIGN`: o indicativo licenciado da estação. O padrão `PY0SIM` é um marcador para o simulador |
 | `.env` | `UPLINK_KEYS_FILE`: as chaves de voo, montadas por volume. O padrão são as chaves de **teste** do `grs-uplink`, as mesmas do satélite simulado |
-| `.env` | `UPLINK_SATELLITES`: os códigos dos satélites que recebem TC. Padrão `SAT-COM-001` (GOLDS-UFSC), o único com perfil de uplink. TC para outro satélite é recusado no solo, sem ir ao rádio |
+| `.env` | `UPLINK_SATELLITES`: os códigos dos satélites que recebem TC. Padrão `FS-2` (o FloripaSat-2, GOLDS-UFSC no catálogo), o único com perfil de uplink. TC para outro satélite é recusado no solo, sem ir ao rádio |
 | painel do USRP (8091) | **profile `rx`:** `tx_bind = tcp://*:5559` (já é o padrão de uma instalação nova) e **TX ligado**. Só com carga fantasma ou com comutação T/R e amplificador na frente do receptor |
 
 ## Quando o uplink transmite
