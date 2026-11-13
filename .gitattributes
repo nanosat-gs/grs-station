@@ -1,5 +1,8 @@
 * text=auto
 *.sh text eol=lf
+# O tools/congelar.ps1 escreve o lock em LF; sem esta linha o git avisa a cada
+# congelamento que vai convertê-lo, e o bootstrap.sh o leria com \r no fim.
+repos.lock text eol=lf
 # Captura de IQ é binária. Sem esta linha, uma conversão de fim de linha
 # dentro das amostras corromperia a fixture EM SILÊNCIO — e o teste de
 # regressão passaria a medir outra coisa sem ninguém notar.

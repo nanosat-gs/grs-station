@@ -61,6 +61,14 @@ trata cada clone como gitlink e você reinventa submódulos por acidente.
 `.\bootstrap.ps1 -Dev` instala tudo em modo editável (necessário para o e2e e
 para `test-all.ps1`). `.\bootstrap.ps1 -Check` confere antes de subir.
 
+**Versões: `repos.lock`.** O `repos.txt` pina branches, que andam, então voltar
+o grs-station para um commit antigo não volta o resto. `tools\congelar.ps1
+-Versao <tag>` grava o SHA de cada repositório em `repos.lock` (mesmo formato
+do `repos.txt`), commita e taggeia aqui: a tag é a versão da estação inteira.
+`git checkout <tag>` + `.\bootstrap.ps1 -Lock` põe todos naquele commit e
+confere no fim. O congelar recusa repositório com alteração local ou com commit
+fora de toda branch do origin. Não edite o `repos.lock` à mão.
+
 ## Portas
 
 | Serviço | Porta |
@@ -172,6 +180,10 @@ porque sem isso um comando ficava em `queued` para sempre. Só passagem
 - **`docker-entrypoint-initdb.d` só roda em volume vazio.** Mudança de schema
   exige `ALTER TABLE` manual ou `docker compose down -v` (que **apaga** os
   dados).
+- **`bootstrap.ps1 -Lock` volta o código, não o banco.** O schema e os dados
+  do Postgres ficam como estão. A conferência de schema do TC Scheduler pega
+  banco *atrás* do código, não *à frente*, que é justamente o caso de voltar
+  uma versão. Para voltar os dados também, `pg_dump` junto com a versão.
 - **`--rotor mock` no Docker.** O `RotorManager` copiado tem o socket SUB fixo
   em `tcp://localhost:5560`, o que não funciona entre containers. Hardware real
   e simulador continuam fora do Docker.

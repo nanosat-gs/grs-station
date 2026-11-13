@@ -176,6 +176,42 @@ Uma ressalva que custa tempo se ignorada: **editar `repos/spacelab-tracking/`
 não tem efeito nos containers**. Ela é instalada por git URL durante o build.
 Ver as armadilhas no [CLAUDE.md](CLAUDE.md).
 
+## Versões da estação
+
+A estação é feita de vários repositórios, e o `repos.txt` aponta **branches**,
+que andam: voltar só este repositório para um commit antigo não volta o resto.
+Uma versão da estação é uma **tag aqui**, num commit que tem o `repos.lock`, o
+commit exato de cada um dos outros repositórios.
+
+Congelar a estação do jeito que ela está em `repos/`:
+
+```powershell
+.\tools\congelar.ps1 -Versao estacao-2026.11.0 -DryRun     # só confere
+.\tools\congelar.ps1 -Versao estacao-2026.11.0 -Publicar   # grava, cria a tag e a envia
+```
+
+O script recusa se algum repositório tem alteração não commitada ou um commit
+que não está no GitHub: uma versão assim só voltaria nesta máquina.
+
+Voltar a uma versão, todos os repositórios juntos:
+
+```powershell
+git fetch --tags
+git checkout estacao-2026.11.0
+.\bootstrap.ps1 -Lock          # ./bootstrap.sh --lock no Linux
+docker compose up -d --build
+```
+
+O `-Lock` termina conferindo que **todos** estão no commit da versão, e sai com
+erro se algum não estiver (repositório com alteração local não é tocado).
+`.\bootstrap.ps1 -Lock -Check` só confere. `git tag -l` lista as versões. Para
+voltar ao desenvolvimento: `git checkout <branch>` aqui e `.\bootstrap.ps1` sem
+`-Lock`.
+
+**O banco não volta junto.** O `-Lock` volta o código; o schema e os dados do
+Postgres ficam como estão. Para poder voltar os dados também, guarde um
+`pg_dump` junto com a versão.
+
 ## Exercitar o fluxo
 
 ```powershell
