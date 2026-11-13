@@ -1,0 +1,28 @@
+# repos.lock: gerado por tools/congelar.ps1. Não edite à mão.
+#
+# Versão da estação: estacao-2026.11.0
+# Congelada em:      2026-11-13 13:39:50 -03:00
+#
+# Mesmo formato do repos.txt, com o commit exato no lugar da branch. Para
+# pôr a estação nesta versão:
+#
+#     git checkout estacao-2026.11.0
+#     .\bootstrap.ps1 -Lock        (ou ./bootstrap.sh --lock)
+#
+# O comentário no fim de cada linha é a branch em que o commit estava.
+
+spacelab-tracking          https://github.com/nanosat-gs/spacelab-tracking.git          0c9d655d7d6be49d077965d4b0394e646cc6e695  # main
+grs-station-manager        https://github.com/nanosat-gs/grs-station-manager.git        b28b13d4a68473cf840499cd58b11d2c6024117a  # main
+grs-manager                https://github.com/nanosat-gs/grs-manager.git                3581828fa80fa6a890434b4b13707096981ffc6c  # main
+grs-tc-scheduler           https://github.com/nanosat-gs/grs-tc-scheduler.git           1b602e42684d55ed102a3c715e7313042c09b0a3  # fix/antes-do-tx-real
+grs-tc-generator           https://github.com/nanosat-gs/grs-tc-generator.git           51410e3fe812dc1ec05a470cf3f0c8b0225e352b  # fix/antes-do-tx-real
+grs-iq-rx                  https://github.com/nanosat-gs/grs-iq-rx.git                  1bdb5cd4e237c82898e0425c0e54ef8dc885a051  # station
+grs-demodulator            https://github.com/nanosat-gs/grs-demodulator.git            8495211bcd4434982ad0309e1a3ed369a5b8a9b3  # station
+grs-syncword-detector      https://github.com/nanosat-gs/grs-syncword-detector.git      7beb2ea428c97a4c85a107fce2c937bb9e24f563  # station
+grs-frequency-synthesizer  https://github.com/nanosat-gs/grs-frequency-synthesizer.git  74e41bbc5171fc0186505f6c7c5f7fd040700c18  # station
+grs-iq-recorder            https://github.com/nanosat-gs/grs-iq-recorder.git            9f4bb5c0fa349ff6557fb4b71573bb5895c6d8db  # main
+grs-sdr-sim                https://github.com/nanosat-gs/grs-sdr-sim.git                4c74913187cb5149c3f6589c43ebdd987e6c2fe7  # main
+grs-fft                    https://github.com/nanosat-gs/grs-fft.git                    029d0a29f813ed7dc634518a232c0c9e97dcecff  # main
+grs-spectrum-monitor       https://github.com/nanosat-gs/grs-spectrum-monitor.git       1ef887a91d7e829306779b862afd91f9d03ae609  # main
+grs-telemetry-decoder      https://github.com/nanosat-gs/grs-telemetry-decoder.git      1e451c63c38d582c639016eeb5d098b249381d19  # main
+grs-uplink                 https://github.com/nanosat-gs/grs-uplink.git                 6d326b3d0707fa7d0a43b5012d5bef4cace37d55  # fix/antes-do-tx-real
